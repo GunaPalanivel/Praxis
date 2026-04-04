@@ -1,0 +1,201 @@
+"""
+praxis_env.scenarios.base — Base class for all incident scenarios.
+
+Every scenario is a pure state machine with NO randomness — same actions always
+produce the same observations and rewards (determinism guarantee required by
+the judging system).
+
+Design:
+  - Scenarios own all their data (logs, metrics, topology) as class attributes
+  - All data is generated at class definition time, not at runtime
+  - Episode state is instance state, reset cleanly on each reset() call
+  - The environment server calls scenario methods; scenarios never call back
+
+Extending Praxis with new scenarios:
+  1. Create a new file in praxis_env/scenarios/
+  2. Subclass BaseScenario
+  3. Implement all abstract methods
+  4. Register in praxis_env/scenarios/__init__.py
+  See docs/developer/adding-scenarios.md for the full guide.
+"""
+
+from __future__ import annotations
+
+from abc import ABC, abstractmethod
+from dataclasses import dataclass, field
+from typing import Any
+
+from praxis_env.models import (
+    AVAILABLE_COMMANDS,
+    PraxisObservation,
+    PraxisState,
+)
+
+
+@dataclass
+class ParsedCommand:
+    """Structured representation of a parsed action command string."""
+
+    action_type: str                      # "query_logs", "diagnose", "escalate", etc.
+    params: dict[str, str] = field(default_factory=dict)  # key=value pairs
+    raw: str = ""                         # Original command string
+
+
+@dataclass
+class StepOutcome:
+    """
+    Internal result from a scenario processing a command.
+    Converted to StepResult by the environment server.
+    """
+
+    investigation_result: str             # Text shown to agent in next observation
+    reward: float                         # Per-step reward (MUST be pre-clamped to [0,1])
+    done: bool                            # Episode ended?
+    incident_resolved: bool               # Root cause + remediation complete?
+    root_cause_identified: bool           # Correct diagnose issued?
+    info: dict[str, Any] = field(default_factory=dict)
+
+
+class BaseScenario(ABC):
+    """
+    Abstract base for all Praxis incident scenarios.
+
+    Lifecycle:
+        scenario = SomeScenario()         # Instantiate
+        scenario.reset()                   # Initialise clean episode state
+        outcome = scenario.step(cmd)       # Process each action
+        obs = scenario.get_observation()   # Get current observation
+
+    Subclass contract:
+        - Implement all @abstractmethod methods
+        - Set class attributes: NAME, SEVERITY, MAX_STEPS, ALERT_SUMMARY,
+          INITIAL_SYSTEM_STATUS, INITIAL_AFFECTED_SERVICES
+        - Keep ALL state in instance variables set in reset()
+        - No randomness — deterministic state machine only
+    """
+
+    # ── Class-level constants (set by each subclass) ─────────────────────────
+    NAME: str = "unnamed-scenario"
+    SEVERITY: str = "P2"
+    MAX_STEPS: int = 15
+    ALERT_SUMMARY: str = "No alert defined"
+    INITIAL_SYSTEM_STATUS: dict[str, str] = {}
+    INITIAL_AFFECTED_SERVICES: list[str] = []
+
+    def __init__(self) -> None:
+        # Episode instance state — reset each time
+        self._step_count: int = 0
+        self._cumulative_reward: float = 0.0
+        self._incident_resolved: bool = False
+        self._root_cause_identified: bool = False
+        self._investigation_history: list[str] = []
+        self._last_investigation_result: str = ""
+        self._current_system_status: dict[str, str] = {}
+        self._episode_id: str = ""
+
+    def reset(self, episode_id: str = "") -> None:
+        """
+        Reset to a fresh episode. Called by the environment server on reset().
+
+        Args:
+            episode_id: Unique identifier for this episode (provided by server)
+        """
+        self._step_count = 0
+        self._cumulative_reward = 0.0
+        self._incident_resolved = False
+        self._root_cause_identified = False
+        self._investigation_history = []
+        self._last_investigation_result = ""
+        self._current_system_status = dict(self.INITIAL_SYSTEM_STATUS)
+        self._episode_id = episode_id
+        self._reset_scenario_state()
+
+    @abstractmethod
+    def _reset_scenario_state(self) -> None:
+        """
+        Subclass hook: reset any scenario-specific instance state.
+        Called at end of reset(). Set your scenario-specific variables here.
+        """
+        ...
+
+    @abstractmethod
+    def step(self, command: ParsedCommand) -> StepOutcome:
+        """
+        Process one parsed command and return the outcome.
+
+        Args:
+            command: Parsed action with action_type and params
+
+        Returns:
+            StepOutcome with result text, reward, done flag, and state flags
+
+        Implementation rules:
+            - NEVER raise exceptions — return an error StepOutcome instead
+            - NEVER use randomness — pure function over deterministic state
+            - ALWAYS clamp reward to [0.0, 1.0] before returning
+            - Increment self._step_count BEFORE computing done
+        """
+        ...
+
+    @abstractmethod
+    def get_initial_observation_text(self) -> str:
+        """
+        Returns the investigation_result text shown on the FIRST observation
+        (before any agent action). Typically empty string or a brief intro.
+        """
+        ...
+
+    # ── Shared helpers (available to all subclasses) ─────────────────────────
+
+    def get_observation(self) -> PraxisObservation:
+        """Build the current PraxisObservation from scenario state."""
+        return PraxisObservation(
+            alert_summary=self.ALERT_SUMMARY,
+            system_status=dict(self._current_system_status),
+            investigation_result=self._last_investigation_result,
+            available_commands=list(AVAILABLE_COMMANDS),
+            time_elapsed_minutes=float(self._step_count * 2.5),  # 2.5 min per step
+            severity=self.SEVERITY,
+            services_affected=list(self._current_system_status.get(s, "")
+                                   for s in self.INITIAL_AFFECTED_SERVICES
+                                   if self._current_system_status.get(s) != "healthy"),
+            step_number=self._step_count,
+        )
+
+    def get_state(self) -> PraxisState:
+        """Build the current PraxisState."""
+        return PraxisState(
+            episode_id=self._episode_id,
+            step_count=self._step_count,
+            task_name=self.NAME,
+            incident_resolved=self._incident_resolved,
+            root_cause_identified=self._root_cause_identified,
+            cumulative_reward=self._cumulative_reward,
+        )
+
+    def is_done(self) -> bool:
+        """True if episode has ended (resolved, escalated, or max steps reached)."""
+        return self._incident_resolved or self._step_count >= self.MAX_STEPS
+
+    @staticmethod
+    def clamp_reward(reward: float) -> float:
+        """Clamp reward to [0.0, 1.0]. Always apply before returning."""
+        return max(0.0, min(1.0, reward))
+
+    def _handle_unknown_command(self, raw_command: str) -> StepOutcome:
+        """
+        Standard response for unrecognised commands.
+        Returns small penalty reward but does NOT crash.
+        """
+        available = "\n".join(f"  {cmd}" for cmd in AVAILABLE_COMMANDS)
+        return StepOutcome(
+            investigation_result=(
+                f"Unknown command: '{raw_command}'\n\n"
+                f"Available commands:\n{available}"
+            ),
+            reward=self.clamp_reward(-0.01),
+            done=self.is_done(),
+            incident_resolved=self._incident_resolved,
+            root_cause_identified=self._root_cause_identified,
+            info={"error": "unknown_command", "raw": raw_command},
+        )

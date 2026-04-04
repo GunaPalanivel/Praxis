@@ -1,0 +1,35 @@
+# Planning and docs (not needed in container)
+idea/
+
+# Git history
+.git/
+.gitignore
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# Testing (not needed in prod image)
+tests/
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# OpenEnv runtime outputs (regenerated at runtime)
+outputs/
+
+# Env files (secrets via env vars, never in image)
+.env
+.env.*
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+.env
+.venv
+venv/
+env/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# OpenEnv runtime outputs (never commit)
+outputs/
+outputs/logs/
+outputs/evals/
+
+# IDE
+.vscode/
+.idea/
+/idea/
+*.sw[po]
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Docker
+*.tar
+
+# HF
+.huggingface/
