@@ -71,6 +71,30 @@ curl -X POST http://localhost:7860/step \
   -d '{"command":"query_logs service=auth timerange=5m"}'
 ```
 
+## Baseline Inference
+
+The judge-facing baseline script is at the repository root:
+
+```bash
+python inference.py
+```
+
+Environment variables:
+
+- `API_BASE_URL` - LLM API endpoint (default: `https://router.huggingface.co/v1`)
+- `MODEL_NAME` - model identifier (default: `Qwen/Qwen2.5-72B-Instruct`)
+- `HF_TOKEN` - API token used by OpenAI client
+- `OPENAI_API_KEY` / `API_KEY` - compatibility fallback if `HF_TOKEN` is not set
+- `PRAXIS_URL` - Praxis server URL (default: `http://127.0.0.1:7860`)
+
+The script emits strict stdout records for each task:
+
+```text
+[START] task=<task_name> env=praxis model=<model_name>
+[STEP] step=<n> action=<action_str> reward=<0.00> done=<true|false> error=<msg|null>
+[END] success=<true|false> steps=<n> rewards=<r1,r2,...,rn>
+```
+
 ## Action Space
 
 Supported commands include:
