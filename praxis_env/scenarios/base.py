@@ -31,6 +31,7 @@ from praxis_env.models import (
     PraxisState,
     StepOutcome,
 )
+from server.reward import RewardEngine, RewardResult
 
 
 class BaseScenario(ABC):
@@ -69,6 +70,7 @@ class BaseScenario(ABC):
         self._last_investigation_result: str = ""
         self._current_system_status: dict[str, str] = {}
         self._episode_id: str = ""
+        self._reward_engine = RewardEngine()
 
     def reset(self, episode_id: str = "") -> None:
         """
@@ -163,18 +165,40 @@ class BaseScenario(ABC):
         """Clamp reward to [0.0, 1.0] for judging-contract compliance."""
         return max(0.0, min(1.0, reward))
 
+    def _score_event(
+        self,
+        event: str,
+        *,
+        duplicate: bool = False,
+        premature: bool = False,
+        destructive: bool = False,
+        resolved: bool = False,
+    ) -> RewardResult:
+        """Delegate reward computation to the centralized reward engine."""
+        return self._reward_engine.score(
+            task_name=self.NAME,
+            event=event,
+            duplicate=duplicate,
+            premature=premature,
+            destructive=destructive,
+            resolved=resolved,
+            step_number=self._step_count + 1,
+            max_steps=self.MAX_STEPS,
+        )
+
     def _handle_unknown_command(self, raw_command: str) -> StepOutcome:
         """
         Standard response for unrecognised commands.
         Returns zero reward but does NOT crash.
         """
         available = "\n".join(f"  {cmd}" for cmd in AVAILABLE_COMMANDS)
+        score = self._score_event("unknown_command")
         return StepOutcome(
             investigation_result=(
                 f"Unknown command: '{raw_command}'\n\n"
                 f"Available commands:\n{available}"
             ),
-            reward=self.clamp_reward(0.0),
+            reward=score.reward,
             done=self.is_done(),
             incident_resolved=self._incident_resolved,
             root_cause_identified=self._root_cause_identified,

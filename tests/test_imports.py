@@ -47,6 +47,14 @@ def test_import_server_environment():
     assert PraxisEnvironment is not None
 
 
+def test_import_server_reward_engine():
+    """Centralized reward engine must be importable."""
+    from server.reward import RewardEngine, RewardPolicy, RewardResult
+    assert RewardEngine is not None
+    assert RewardPolicy is not None
+    assert RewardResult is not None
+
+
 def test_import_server_app():
     """FastAPI app must be importable."""
     from server.app import app, create_app, main

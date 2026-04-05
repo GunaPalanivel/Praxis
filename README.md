@@ -12,7 +12,7 @@ Round 1 asks for a mini RL environment with defined tasks, graders, and reward l
 - three tasks ordered easy -> medium -> hard
 - a live OpenEnv-style HTTP API
 - a baseline-friendly command surface for agents
-- rewards bounded to `[-1.0, 1.0]`
+- rewards bounded to `[0.0, 1.0]`
 
 LinkedIn post: [Scaler Official announcement](https://www.linkedin.com/posts/scalerofficial_hackathon-scaler-openenvhackathon-activity-7440669004337143808-mncw)
 
@@ -23,7 +23,8 @@ This repository currently implements:
 - A FastAPI server with `POST /reset`, `POST /step`, `GET /state`, `GET /tasks`, and `GET /health`
 - Three deterministic tasks with increasing difficulty
 - ASCII-normalized observation text for stable local output
-- Signed per-step rewards in `[-1.0, 1.0]`
+- Centralized per-step reward engine in `server/reward.py`
+- Per-step rewards in `[0.0, 1.0]`
 
 ## Tasks
 
@@ -116,8 +117,8 @@ Rewards are intentionally sparse but informative:
 - Useful investigation commands earn small positive reward
 - Correct diagnosis earns a larger reward
 - Correct remediation or evidence-backed escalation earns the largest reward
-- Wrong diagnosis, wrong remediation, or premature escalation are penalized
-- Rewards are clamped to `[-1.0, 1.0]`
+- Wrong diagnosis, wrong remediation, or premature escalation receive no credit
+- Rewards are clamped to `[0.0, 1.0]`
 
 ## Repository Layout
 

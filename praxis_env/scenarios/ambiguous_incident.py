@@ -315,19 +315,6 @@ Recent config changes for cache:
 """,
     }
 
-    REWARD_FIRST_APP_LOG = 0.05
-    REWARD_FIRST_INFRA_LOG = 0.10
-    REWARD_CHECK_DEPS = 0.03
-    REWARD_CHECK_CONFIG = 0.05
-    REWARD_DNS_METRICS = 0.10
-    REWARD_CORRECT_DIAGNOSIS = 0.20
-    REWARD_CORRECT_REMEDIATION = 0.15
-    REWARD_ESCALATE_WITH_EVIDENCE = 0.15
-    PENALTY_WRONG_DIAGNOSIS = 0.0
-    PENALTY_WRONG_REMEDIATION = 0.0
-    PENALTY_ESCALATE_NO_EVIDENCE = 0.0
-    PENALTY_UNKNOWN = 0.0
-
     def _reset_scenario_state(self) -> None:
         self._done_investigations: set[str] = set()
         self._unique_services: set[str] = set()
@@ -374,29 +361,32 @@ Recent config changes for cache:
         logs = self._LOGS.get(service)
 
         if logs is None:
+            score = self._score_event("invalid_input")
             return StepOutcome(
                 investigation_result=f"No log data available for service '{service}'.",
-                reward=self.clamp_reward(0.0),
+                reward=score.reward,
                 done=self.is_done(),
                 incident_resolved=self._incident_resolved,
                 root_cause_identified=self._root_cause_identified,
             )
 
         key = f"logs:{service}"
-        reward = 0.0
-        if key not in self._done_investigations:
+        duplicate = key in self._done_investigations
+        if not duplicate:
             self._done_investigations.add(key)
             self._remember_service(service)
-            if service in self.APP_SERVICES:
-                reward = self.REWARD_FIRST_APP_LOG
-            elif service == "dns-resolver":
-                reward = self.REWARD_FIRST_INFRA_LOG
-            else:
-                reward = 0.03
+
+        if service in self.APP_SERVICES:
+            event = "investigation.query_logs.app"
+        elif service == "dns-resolver":
+            event = "investigation.query_logs.dns-resolver"
+        else:
+            event = "investigation.query_logs.default"
+        score = self._score_event(event, duplicate=duplicate)
 
         return StepOutcome(
             investigation_result=logs,
-            reward=self.clamp_reward(reward),
+            reward=score.reward,
             done=self.is_done(),
             incident_resolved=self._incident_resolved,
             root_cause_identified=self._root_cause_identified,
@@ -408,34 +398,37 @@ Recent config changes for cache:
         data = self._METRICS.get((service, metric))
 
         if data is None:
+            score = self._score_event("invalid_input")
             return StepOutcome(
                 investigation_result=(
                     f"No metric '{metric}' available for service '{service}'.\n"
                     "Available metrics: error_rate, latency_p95, memory, resolution_failures, cache_hit_rate"
                 ),
-                reward=self.clamp_reward(0.0),
+                reward=score.reward,
                 done=self.is_done(),
                 incident_resolved=self._incident_resolved,
                 root_cause_identified=self._root_cause_identified,
             )
 
         key = f"metric:{service}:{metric}"
-        reward = 0.0
-        if key not in self._done_investigations:
+        duplicate = key in self._done_investigations
+        if not duplicate:
             self._done_investigations.add(key)
             self._remember_service(service)
-            if service == "dns-resolver" and metric == "resolution_failures":
-                reward = self.REWARD_DNS_METRICS
-            elif service in self.APP_SERVICES:
-                reward = 0.03
-            elif service == "load-balancer":
-                reward = 0.02
-            else:
-                reward = 0.02
+
+        if service == "dns-resolver" and metric == "resolution_failures":
+            event = "investigation.check_metrics.dns-resolver.resolution_failures"
+        elif service in self.APP_SERVICES:
+            event = "investigation.check_metrics.app"
+        elif service == "load-balancer":
+            event = "investigation.check_metrics.load-balancer"
+        else:
+            event = "investigation.check_metrics.default"
+        score = self._score_event(event, duplicate=duplicate)
 
         return StepOutcome(
             investigation_result=data,
-            reward=self.clamp_reward(reward),
+            reward=score.reward,
             done=self.is_done(),
             incident_resolved=self._incident_resolved,
             root_cause_identified=self._root_cause_identified,
@@ -446,24 +439,26 @@ Recent config changes for cache:
         data = self._DEPS.get(service)
 
         if data is None:
+            score = self._score_event("invalid_input")
             return StepOutcome(
                 investigation_result=f"No dependency data available for service '{service}'.",
-                reward=self.clamp_reward(0.0),
+                reward=score.reward,
                 done=self.is_done(),
                 incident_resolved=self._incident_resolved,
                 root_cause_identified=self._root_cause_identified,
             )
 
         key = f"deps:{service}"
-        reward = 0.0
-        if key not in self._done_investigations:
+        duplicate = key in self._done_investigations
+        if not duplicate:
             self._done_investigations.add(key)
             self._remember_service(service)
-            reward = self.REWARD_CHECK_DEPS
+
+        score = self._score_event("investigation.check_deps.default", duplicate=duplicate)
 
         return StepOutcome(
             investigation_result=data,
-            reward=self.clamp_reward(reward),
+            reward=score.reward,
             done=self.is_done(),
             incident_resolved=self._incident_resolved,
             root_cause_identified=self._root_cause_identified,
@@ -474,29 +469,32 @@ Recent config changes for cache:
         data = self._CONFIGS.get(service)
 
         if data is None:
+            score = self._score_event("invalid_input")
             return StepOutcome(
                 investigation_result=f"No config history available for service '{service}'.",
-                reward=self.clamp_reward(0.0),
+                reward=score.reward,
                 done=self.is_done(),
                 incident_resolved=self._incident_resolved,
                 root_cause_identified=self._root_cause_identified,
             )
 
         key = f"config:{service}"
-        reward = 0.0
-        if key not in self._done_investigations:
+        duplicate = key in self._done_investigations
+        if not duplicate:
             self._done_investigations.add(key)
             self._remember_service(service)
-            if service == "dns-resolver":
-                reward = self.REWARD_CHECK_CONFIG
-            elif service in self.APP_SERVICES:
-                reward = 0.02
-            else:
-                reward = 0.01
+
+        if service == "dns-resolver":
+            event = "investigation.check_config.dns-resolver"
+        elif service in self.APP_SERVICES:
+            event = "investigation.check_config.app"
+        else:
+            event = "investigation.check_config.default"
+        score = self._score_event(event, duplicate=duplicate)
 
         return StepOutcome(
             investigation_result=data,
-            reward=self.clamp_reward(reward),
+            reward=score.reward,
             done=self.is_done(),
             incident_resolved=self._incident_resolved,
             root_cause_identified=self._root_cause_identified,
@@ -509,6 +507,7 @@ Recent config changes for cache:
         if normalised in self.CORRECT_ROOT_CAUSES:
             if self._has_sufficient_evidence():
                 self._root_cause_identified = True
+                score = self._score_event("diagnosis.correct")
                 return StepOutcome(
                     investigation_result=(
                         "Correct diagnosis. DNS misconfiguration confirmed after maintenance.\n\n"
@@ -517,18 +516,19 @@ Recent config changes for cache:
                         "across internal services.\n\n"
                         "Next step: restart dns-resolver or escalate with evidence."
                     ),
-                    reward=self.clamp_reward(self.REWARD_CORRECT_DIAGNOSIS),
+                    reward=score.reward,
                     done=self.is_done(),
                     incident_resolved=False,
                     root_cause_identified=True,
                 )
 
+            score = self._score_event("diagnosis.wrong", premature=True)
             return StepOutcome(
                 investigation_result=(
                     f"Incorrect timing: '{raw_cause}' may be plausible, but the evidence is not sufficient yet.\n\n"
                     "Investigate at least three app services and inspect the DNS layer before diagnosing."
                 ),
-                reward=self.clamp_reward(self.PENALTY_WRONG_DIAGNOSIS),
+                reward=score.reward,
                 done=self.is_done(),
                 incident_resolved=False,
                 root_cause_identified=False,
@@ -555,19 +555,21 @@ Recent config changes for cache:
                     "Incorrect diagnosis: network latency is a symptom of retries, not the root cause."
                 )
 
+            score = self._score_event("diagnosis.wrong", premature=True)
             return StepOutcome(
                 investigation_result=detail,
-                reward=self.clamp_reward(self.PENALTY_WRONG_DIAGNOSIS),
+                reward=score.reward,
                 done=self.is_done(),
                 incident_resolved=False,
                 root_cause_identified=False,
             )
 
+        score = self._score_event("diagnosis.wrong", premature=True)
         return StepOutcome(
             investigation_result=(
                 f"Incorrect diagnosis: '{raw_cause}'. The evidence points to the DNS layer, not a service-specific bug."
             ),
-            reward=self.clamp_reward(self.PENALTY_WRONG_DIAGNOSIS),
+            reward=score.reward,
             done=self.is_done(),
             incident_resolved=False,
             root_cause_identified=False,
@@ -577,22 +579,24 @@ Recent config changes for cache:
         service = get_service_param(command.params)
 
         if service != "dns-resolver":
+            score = self._score_event("remediation.wrong", destructive=True)
             return StepOutcome(
                 investigation_result=(
                     f"Restarting '{service}' does not address the incident. The failures are caused by DNS resolution issues."
                 ),
-                reward=self.clamp_reward(self.PENALTY_WRONG_REMEDIATION),
+                reward=score.reward,
                 done=self.is_done(),
                 incident_resolved=False,
                 root_cause_identified=self._root_cause_identified,
             )
 
         if not self._has_sufficient_evidence():
+            score = self._score_event("remediation.wrong", premature=True)
             return StepOutcome(
                 investigation_result=(
                     "Restarting dns-resolver now would be premature. Gather evidence from multiple services first."
                 ),
-                reward=self.clamp_reward(self.PENALTY_WRONG_REMEDIATION),
+                reward=score.reward,
                 done=self.is_done(),
                 incident_resolved=False,
                 root_cause_identified=self._root_cause_identified,
@@ -600,6 +604,7 @@ Recent config changes for cache:
 
         self._incident_resolved = True
         self._current_system_status = {service_name: "healthy" for service_name in self._current_system_status}
+        score = self._score_event("remediation.restart_service.dns-resolver", resolved=True)
         return StepOutcome(
             investigation_result=(
                 "dns-resolver restarted successfully.\n\n"
@@ -608,7 +613,7 @@ Recent config changes for cache:
                 "- NXDOMAIN rate dropped and services recovered\n\n"
                 "Incident resolved."
             ),
-            reward=self.clamp_reward(self.REWARD_CORRECT_REMEDIATION),
+            reward=score.reward,
             done=True,
             incident_resolved=True,
             root_cause_identified=self._root_cause_identified,
@@ -619,12 +624,13 @@ Recent config changes for cache:
         reason = command.params.get("reason", "")
 
         if not self._has_sufficient_evidence():
+            score = self._score_event("escalation.no_evidence", premature=True)
             return StepOutcome(
                 investigation_result=(
                     "Escalation filed without sufficient evidence. Gather at least three app services and an\n"
                     "infrastructure signal before escalating."
                 ),
-                reward=self.clamp_reward(self.PENALTY_ESCALATE_NO_EVIDENCE),
+                reward=score.reward,
                 done=True,
                 incident_resolved=False,
                 root_cause_identified=self._root_cause_identified,
@@ -632,6 +638,7 @@ Recent config changes for cache:
 
         self._incident_resolved = True
         self._current_system_status = {service_name: "healthy" for service_name in self._current_system_status}
+        score = self._score_event("escalation.with_evidence", resolved=True)
         return StepOutcome(
             investigation_result=(
                 f"Escalation accepted with evidence.\n\nReason: {reason}\n"
@@ -640,7 +647,7 @@ Recent config changes for cache:
                 f"Infrastructure services investigated: {len(self._infra_services_seen)}\n\n"
                 "On-call has enough context to act on the DNS issue."
             ),
-            reward=self.clamp_reward(self.REWARD_ESCALATE_WITH_EVIDENCE),
+            reward=score.reward,
             done=True,
             incident_resolved=True,
             root_cause_identified=self._root_cause_identified,
@@ -649,11 +656,12 @@ Recent config changes for cache:
 
     def _handle_wrong_remediation(self, command: ParsedCommand) -> StepOutcome:
         service = get_service_param(command.params)
+        score = self._score_event("remediation.wrong", destructive=True)
         return StepOutcome(
             investigation_result=(
                 f"Action '{command.action_type}' on '{service}' does not address the DNS outage pattern."
             ),
-            reward=self.clamp_reward(self.PENALTY_WRONG_REMEDIATION),
+            reward=score.reward,
             done=self.is_done(),
             incident_resolved=False,
             root_cause_identified=self._root_cause_identified,

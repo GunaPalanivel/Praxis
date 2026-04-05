@@ -18,7 +18,7 @@ Notes about the current contract:
 
 - `alert_summary` and `investigation_result` are ASCII-normalized text payloads.
 - `services_affected` is an array of service names with non-healthy status.
-- Per-step `reward` is signed and currently bounded to `[-1.0, 1.0]`.
+- Per-step `reward` is centrally computed and bounded to `[0.0, 1.0]`.
 
 ---
 
@@ -34,9 +34,9 @@ Start a new episode and clear all previous episode state.
 }
 ```
 
-| Field       | Type   | Default                  | Current values                                    |
-| ----------- | ------ | ------------------------ | ------------------------------------------------- |
-| `task_name` | string | `"single-service-alert"` | `"single-service-alert"` or `"cascading-failure"` |
+| Field       | Type   | Default                  | Current values                                                             |
+| ----------- | ------ | ------------------------ | -------------------------------------------------------------------------- |
+| `task_name` | string | `"single-service-alert"` | `"single-service-alert"`, `"cascading-failure"`, or `"ambiguous-incident"` |
 
 ### Response `200 OK`
 
@@ -132,12 +132,12 @@ You must call `/reset` first.
 }
 ```
 
-| Field         | Type    | Description                             |
-| ------------- | ------- | --------------------------------------- |
-| `observation` | object  | The new observation after the command   |
-| `reward`      | float   | Signed per-step reward in `[-1.0, 1.0]` |
-| `done`        | boolean | `true` when the episode has ended       |
-| `info`        | object  | Optional debug metadata                 |
+| Field         | Type    | Description                           |
+| ------------- | ------- | ------------------------------------- |
+| `observation` | object  | The new observation after the command |
+| `reward`      | float   | Per-step reward in `[0.0, 1.0]`       |
+| `done`        | boolean | `true` when the episode has ended     |
+| `info`        | object  | Optional debug metadata               |
 
 ### Error responses
 
@@ -172,7 +172,7 @@ Get current episode metadata without the full observation.
 | `task_name`             | string  | Active scenario ID                                                |
 | `incident_resolved`     | boolean | Whether the incident has been resolved or escalated to completion |
 | `root_cause_identified` | boolean | Whether a correct diagnosis has been issued                       |
-| `cumulative_reward`     | float   | Sum of signed rewards so far                                      |
+| `cumulative_reward`     | float   | Sum of per-step rewards so far                                    |
 
 ---
 

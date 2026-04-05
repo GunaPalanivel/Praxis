@@ -357,24 +357,6 @@ Recent config changes for auth:
 """,
     }
 
-    # ── Reward constants ───────────────────────────────────────────────────────
-
-    REWARD_API_LOGS = 0.05        # First useful log query (sees DB timeout errors)
-    REWARD_DB_METRICS = 0.10      # Checking DB connections — key diagnostic step
-    REWARD_DB_LOGS = 0.10         # DB logs reveal the runaway query directly
-    REWARD_CHECK_DEPS = 0.05      # Checking API/auth deps shows DB as common factor
-    REWARD_ANALYTICS_LOGS = 0.05  # Checking analytics corroborates root cause
-    REWARD_OTHER_QUERY = 0.03     # Other helpful investigation
-    REWARD_CORRECT_DIAGNOSIS = 0.20
-    REWARD_KILL_QUERY = 0.15      # Immediate fix — stops the pool exhaustion
-    REWARD_SCALE_POOL = 0.10      # Secondary fix — increases resilience
-    REWARD_ESCALATE_WITH_EVIDENCE = 0.15
-
-    PENALTY_WRONG_DIAGNOSIS = 0.0
-    PENALTY_WRONG_REMEDIATION = 0.0
-    PENALTY_ESCALATE_NO_EVIDENCE = 0.0
-    PENALTY_UNKNOWN = 0.0
-
     # ── Accepted answers ───────────────────────────────────────────────────────
 
     CORRECT_ROOT_CAUSES = frozenset({
@@ -445,30 +427,33 @@ Recent config changes for auth:
         logs = self._LOGS.get(service)
 
         if logs is None:
+            score = self._score_event("invalid_input")
             return StepOutcome(
                 investigation_result=f"No log data for service '{service}'.",
-                reward=self.clamp_reward(0.0),
+                reward=score.reward,
                 done=self.is_done(),
                 incident_resolved=self._incident_resolved,
                 root_cause_identified=self._root_cause_identified,
             )
 
         key = f"logs:{service}"
-        reward = 0.0
-        if key not in self._done_investigations:
+        duplicate = key in self._done_investigations
+        if not duplicate:
             self._done_investigations.add(key)
-            if service == "api":
-                reward = self.REWARD_API_LOGS
-            elif service == "database":
-                reward = self.REWARD_DB_LOGS
-            elif service == "analytics":
-                reward = self.REWARD_ANALYTICS_LOGS
-            else:
-                reward = self.REWARD_OTHER_QUERY
+
+        if service == "api":
+            event = "investigation.query_logs.api"
+        elif service == "database":
+            event = "investigation.query_logs.database"
+        elif service == "analytics":
+            event = "investigation.query_logs.analytics"
+        else:
+            event = "investigation.query_logs.default"
+        score = self._score_event(event, duplicate=duplicate)
 
         return StepOutcome(
             investigation_result=logs,
-            reward=self.clamp_reward(reward),
+            reward=score.reward,
             done=self.is_done(),
             incident_resolved=self._incident_resolved,
             root_cause_identified=self._root_cause_identified,
@@ -480,31 +465,33 @@ Recent config changes for auth:
         data = self._METRICS.get((service, metric))
 
         if data is None:
+            score = self._score_event("invalid_input")
             return StepOutcome(
                 investigation_result=(
                     f"No metric '{metric}' for service '{service}'.\n"
                     "Available: error_rate, latency_p95, connections, memory, cpu, "
                     "throughput, cache_hit_rate"
                 ),
-                reward=self.clamp_reward(0.0),
+                reward=score.reward,
                 done=self.is_done(),
                 incident_resolved=self._incident_resolved,
                 root_cause_identified=self._root_cause_identified,
             )
 
         key = f"metric:{service}:{metric}"
-        reward = 0.0
-        if key not in self._done_investigations:
+        duplicate = key in self._done_investigations
+        if not duplicate:
             self._done_investigations.add(key)
-            # DB connections is the money metric — highest reward
-            if service == "database" and metric == "connections":
-                reward = self.REWARD_DB_METRICS
-            else:
-                reward = self.REWARD_OTHER_QUERY
+
+        if service == "database" and metric == "connections":
+            event = "investigation.check_metrics.database.connections"
+        else:
+            event = "investigation.check_metrics.default"
+        score = self._score_event(event, duplicate=duplicate)
 
         return StepOutcome(
             investigation_result=data,
-            reward=self.clamp_reward(reward),
+            reward=score.reward,
             done=self.is_done(),
             incident_resolved=self._incident_resolved,
             root_cause_identified=self._root_cause_identified,
@@ -515,18 +502,20 @@ Recent config changes for auth:
         data = self._DEPS.get(service, f"No dependency data for '{service}'.")
 
         key = f"deps:{service}"
-        reward = 0.0
-        if key not in self._done_investigations:
+        duplicate = key in self._done_investigations
+        if not duplicate:
             self._done_investigations.add(key)
-            # Checking API or auth deps reveals database as common dependency
-            if service in ("api", "auth", "payment"):
-                reward = self.REWARD_CHECK_DEPS
-            else:
-                reward = self.REWARD_OTHER_QUERY
+
+        event = (
+            "investigation.check_deps.core"
+            if service in ("api", "auth", "payment")
+            else "investigation.check_deps.default"
+        )
+        score = self._score_event(event, duplicate=duplicate)
 
         return StepOutcome(
             investigation_result=data,
-            reward=self.clamp_reward(reward),
+            reward=score.reward,
             done=self.is_done(),
             incident_resolved=self._incident_resolved,
             root_cause_identified=self._root_cause_identified,
@@ -537,21 +526,21 @@ Recent config changes for auth:
         data = self._CONFIGS.get(service, f"No config history for '{service}'.")
 
         key = f"config:{service}"
-        reward = 0.0
-        if key not in self._done_investigations:
+        duplicate = key in self._done_investigations
+        if not duplicate:
             self._done_investigations.add(key)
-            # Checking API config is a slight trap (deploy looks suspicious)—low reward
-            # Checking DB or analytics config reveals the real issue
-            if service in ("database", "analytics"):
-                reward = self.REWARD_OTHER_QUERY  # 0.03
-            elif service == "api":
-                reward = 0.01  # Small — confirms deploy is healthy, but not the smoking gun
-            else:
-                reward = 0.01
+
+        if service == "database":
+            event = "investigation.check_config.database"
+        elif service == "analytics":
+            event = "investigation.check_config.analytics"
+        else:
+            event = "investigation.check_config.default"
+        score = self._score_event(event, duplicate=duplicate)
 
         return StepOutcome(
             investigation_result=data,
-            reward=self.clamp_reward(reward),
+            reward=score.reward,
             done=self.is_done(),
             incident_resolved=self._incident_resolved,
             root_cause_identified=self._root_cause_identified,
@@ -563,6 +552,7 @@ Recent config changes for auth:
 
         if normalised in self.CORRECT_ROOT_CAUSES:
             self._root_cause_identified = True
+            score = self._score_event("diagnosis.correct")
             return StepOutcome(
                 investigation_result=(
                     "✅ Correct diagnosis!\n\n"
@@ -572,13 +562,13 @@ Recent config changes for auth:
                     "Immediate action: kill the runaway query (kill_query service=database query_id=runaway_analytics)\n"
                     "Secondary action: scale the connection pool (scale_resource service=database resource=connection_pool)"
                 ),
-                reward=self.clamp_reward(self.REWARD_CORRECT_DIAGNOSIS),
+                reward=score.reward,
                 done=self.is_done(),
                 incident_resolved=False,
                 root_cause_identified=True,
             )
         elif normalised in self.RED_HERRING_CAUSES:
-            penalty = self.PENALTY_WRONG_DIAGNOSIS
+            score = self._score_event("diagnosis.wrong", premature=True)
             if "api_deployment" in normalised or "deploy" in normalised:
                 detail = (
                     "❌ Incorrect diagnosis: the API deployment at 14:15 UTC has been "
@@ -598,19 +588,20 @@ Recent config changes for auth:
 
             return StepOutcome(
                 investigation_result=detail,
-                reward=self.clamp_reward(penalty),
+                reward=score.reward,
                 done=self.is_done(),
                 incident_resolved=False,
                 root_cause_identified=False,
             )
         else:
+            score = self._score_event("diagnosis.wrong", premature=True)
             return StepOutcome(
                 investigation_result=(
                     f"❌ Incorrect diagnosis: '{raw}'.\n"
                     "Review the database metrics and logs — the common dependency "
                     "between all affected services is the key."
                 ),
-                reward=self.clamp_reward(self.PENALTY_WRONG_DIAGNOSIS),
+                reward=score.reward,
                 done=self.is_done(),
                 incident_resolved=False,
                 root_cause_identified=False,
@@ -621,9 +612,10 @@ Recent config changes for auth:
         query_id = command.params.get("query_id", "").lower().strip()
 
         if service != "database":
+            score = self._score_event("remediation.wrong", destructive=True)
             return StepOutcome(
                 investigation_result=f"kill_query: service '{service}' doesn't support this command.",
-                reward=self.clamp_reward(self.PENALTY_WRONG_REMEDIATION),
+                reward=score.reward,
                 done=self.is_done(),
                 incident_resolved=False,
                 root_cause_identified=self._root_cause_identified,
@@ -642,6 +634,11 @@ Recent config changes for auth:
                 self._incident_resolved = True
                 self._current_system_status = {k: "healthy" for k in self._current_system_status}
 
+            score = self._score_event(
+                "remediation.kill_query.database",
+                resolved=done_now,
+            )
+
             return StepOutcome(
                 investigation_result=(
                     "✅ Runaway query killed.\n\n"
@@ -657,13 +654,14 @@ Recent config changes for auth:
                         "  scale_resource service=database resource=connection_pool"
                     )
                 ),
-                reward=self.clamp_reward(self.REWARD_KILL_QUERY),
+                reward=score.reward,
                 done=done_now,
                 incident_resolved=done_now,
                 root_cause_identified=self._root_cause_identified,
             )
         else:
             # Wrong query ID but right service — no reward, no penalty
+            score = self._score_event("invalid_input")
             return StepOutcome(
                 investigation_result=(
                     f"Query '{query_id}' not found or already completed.\n"
@@ -671,7 +669,7 @@ Recent config changes for auth:
                     "  PID 8847 | analytics_pipeline | 4m 12s | SELECT * FROM events (full scan)\n\n"
                     "Hint: kill_query service=database query_id=runaway_analytics"
                 ),
-                reward=self.clamp_reward(0.0),
+                reward=score.reward,
                 done=self.is_done(),
                 incident_resolved=False,
                 root_cause_identified=self._root_cause_identified,
@@ -688,6 +686,11 @@ Recent config changes for auth:
                 self._incident_resolved = True
                 self._current_system_status = {k: "healthy" for k in self._current_system_status}
 
+            score = self._score_event(
+                "remediation.scale_resource.database.connection_pool",
+                resolved=done_now,
+            )
+
             return StepOutcome(
                 investigation_result=(
                     "✅ Database connection pool scaled.\n\n"
@@ -701,19 +704,20 @@ Recent config changes for auth:
                         "  kill_query service=database query_id=runaway_analytics"
                     )
                 ),
-                reward=self.clamp_reward(self.REWARD_SCALE_POOL),
+                reward=score.reward,
                 done=done_now,
                 incident_resolved=done_now,
                 root_cause_identified=self._root_cause_identified,
             )
         else:
+            score = self._score_event("remediation.wrong", destructive=True)
             return StepOutcome(
                 investigation_result=(
                     f"scale_resource: '{resource}' on '{service}' had no effect on the incident.\n"
                     "The bottleneck is the database connection pool.\n"
                     "Try: scale_resource service=database resource=connection_pool"
                 ),
-                reward=self.clamp_reward(self.PENALTY_WRONG_REMEDIATION),
+                reward=score.reward,
                 done=self.is_done(),
                 incident_resolved=False,
                 root_cause_identified=self._root_cause_identified,
@@ -721,6 +725,7 @@ Recent config changes for auth:
 
     def _handle_restart_service(self, command: ParsedCommand) -> StepOutcome:
         service = get_service_param(command.params)
+        score = self._score_event("remediation.wrong", destructive=True)
         return StepOutcome(
             investigation_result=(
                 f"⚠️ Restarted '{service}', but it immediately begins failing again.\n"
@@ -728,7 +733,7 @@ Recent config changes for auth:
                 "services doesn't fix the underlying database bottleneck.\n\n"
                 "Hint: The root problem is in the database layer, not in application services."
             ),
-            reward=self.clamp_reward(self.PENALTY_WRONG_REMEDIATION),
+            reward=score.reward,
             done=self.is_done(),
             incident_resolved=False,
             root_cause_identified=self._root_cause_identified,
@@ -748,9 +753,10 @@ Recent config changes for auth:
                 f"⚠️ Rolled back '{service}' but the incident continues. "
                 "The deployment was not the root cause."
             )
+        score = self._score_event("remediation.wrong", destructive=True)
         return StepOutcome(
             investigation_result=message,
-            reward=self.clamp_reward(self.PENALTY_WRONG_REMEDIATION),
+            reward=score.reward,
             done=self.is_done(),
             incident_resolved=False,
             root_cause_identified=self._root_cause_identified,
@@ -762,6 +768,7 @@ Recent config changes for auth:
 
         if num_investigations >= 3:
             self._incident_resolved = True
+            score = self._score_event("escalation.with_evidence", resolved=True)
             return StepOutcome(
                 investigation_result=(
                     f"✅ Escalated with evidence to on-call lead.\n\n"
@@ -769,19 +776,20 @@ Recent config changes for auth:
                     f"Evidence gathered: {num_investigations} investigation(s)\n\n"
                     "On-call lead will drive resolution with full context provided."
                 ),
-                reward=self.clamp_reward(self.REWARD_ESCALATE_WITH_EVIDENCE),
+                reward=score.reward,
                 done=True,
                 incident_resolved=True,
                 root_cause_identified=self._root_cause_identified,
             )
         else:
+            score = self._score_event("escalation.no_evidence", premature=True)
             return StepOutcome(
                 investigation_result=(
                     f"⚠️ Escalated without sufficient evidence ({num_investigations} investigation(s), need ≥3).\n"
                     "On-call lead will have to start from scratch.\n\n"
                     "Tip: gather evidence from multiple services before escalating a P1."
                 ),
-                reward=self.clamp_reward(self.PENALTY_ESCALATE_NO_EVIDENCE),
+                reward=score.reward,
                 done=True,
                 incident_resolved=False,
                 root_cause_identified=self._root_cause_identified,

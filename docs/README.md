@@ -7,10 +7,10 @@ This documentation set describes the repository as it exists today:
 - FastAPI server with `POST /reset`, `POST /step`, `GET /state`, `GET /tasks`, and `GET /health`
 - Three implemented tasks: `single-service-alert`, `cascading-failure`, and `ambiguous-incident`
 - ASCII-normalized observation text for stable local console output
-- Signed per-step rewards in `[-1.0, 1.0]`
+- Centralized per-step reward engine in `server/reward.py`
+- Per-step rewards in `[0.0, 1.0]`
 
-Planned later phases still include a root submission `README.md`, `inference.py`,
-Docker packaging, and a centralized reward module.
+Planned later phases still include `inference.py` and Docker packaging.
 
 ---
 

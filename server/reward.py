@@ -1,0 +1,249 @@
+"""
+server.reward - Centralized reward engine for Praxis scenarios.
+
+Phase 6 introduces a single scoring module so scenario classes only emit
+semantic reward events (investigation, diagnosis, remediation, escalation)
+instead of carrying duplicated numeric constants.
+
+All returned rewards are clamped to [0.0, 1.0].
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Mapping
+
+
+def clamp_reward(value: float) -> float:
+    """Clamp score to the OpenEnv judging-safe range [0.0, 1.0]."""
+    return max(0.0, min(1.0, value))
+
+
+@dataclass(frozen=True)
+class RewardBreakdown:
+    """Per-component score contribution for one agent action."""
+
+    investigation_reward: float = 0.0
+    redundancy_penalty: float = 0.0
+    diagnosis_reward: float = 0.0
+    diagnosis_penalty: float = 0.0
+    remediation_reward: float = 0.0
+    destructive_penalty: float = 0.0
+    efficiency_bonus: float = 0.0
+    escalation_reward: float = 0.0
+    premature_penalty: float = 0.0
+    time_pressure_cost: float = 0.0
+    total_unclamped: float = 0.0
+
+    def to_dict(self) -> dict[str, float]:
+        return {
+            "investigation_reward": self.investigation_reward,
+            "redundancy_penalty": self.redundancy_penalty,
+            "diagnosis_reward": self.diagnosis_reward,
+            "diagnosis_penalty": self.diagnosis_penalty,
+            "remediation_reward": self.remediation_reward,
+            "destructive_penalty": self.destructive_penalty,
+            "efficiency_bonus": self.efficiency_bonus,
+            "escalation_reward": self.escalation_reward,
+            "premature_penalty": self.premature_penalty,
+            "time_pressure_cost": self.time_pressure_cost,
+            "total_unclamped": self.total_unclamped,
+        }
+
+
+@dataclass(frozen=True)
+class RewardResult:
+    """Final clamped reward and detailed component accounting."""
+
+    reward: float
+    breakdown: RewardBreakdown
+
+
+@dataclass(frozen=True)
+class RewardPolicy:
+    """Task-level reward policy and tuning knobs."""
+
+    event_values: Mapping[str, float]
+    redundancy_penalty: float = -0.02
+    premature_penalty: float = -0.05
+    destructive_penalty: float = -0.15
+    efficiency_bonus_max: float = 0.0
+    time_pressure_cost_per_step: float = 0.0
+
+
+DEFAULT_REWARD_POLICIES: dict[str, RewardPolicy] = {
+    "single-service-alert": RewardPolicy(
+        event_values={
+            "investigation.query_logs.auth": 0.05,
+            "investigation.query_logs.default": 0.03,
+            "investigation.check_metrics.connections": 0.05,
+            "investigation.check_metrics.default": 0.05,
+            "investigation.check_deps.default": 0.03,
+            "investigation.check_config.auth": 0.10,
+            "investigation.check_config.default": 0.02,
+            "diagnosis.correct": 0.20,
+            "diagnosis.wrong": 0.0,
+            "remediation.rollback_deploy.auth": 0.25,
+            "remediation.wrong": 0.0,
+            "escalation.with_evidence": 0.15,
+            "escalation.no_evidence": 0.0,
+            "unknown_command": 0.0,
+            "invalid_input": 0.0,
+        },
+    ),
+    "cascading-failure": RewardPolicy(
+        event_values={
+            "investigation.query_logs.api": 0.05,
+            "investigation.query_logs.database": 0.10,
+            "investigation.query_logs.analytics": 0.05,
+            "investigation.query_logs.default": 0.03,
+            "investigation.check_metrics.database.connections": 0.10,
+            "investigation.check_metrics.default": 0.03,
+            "investigation.check_deps.core": 0.05,
+            "investigation.check_deps.default": 0.03,
+            "investigation.check_config.database": 0.03,
+            "investigation.check_config.analytics": 0.03,
+            "investigation.check_config.default": 0.01,
+            "diagnosis.correct": 0.20,
+            "diagnosis.wrong": 0.0,
+            "remediation.kill_query.database": 0.15,
+            "remediation.scale_resource.database.connection_pool": 0.10,
+            "remediation.wrong": 0.0,
+            "escalation.with_evidence": 0.15,
+            "escalation.no_evidence": 0.0,
+            "unknown_command": 0.0,
+            "invalid_input": 0.0,
+        },
+    ),
+    "ambiguous-incident": RewardPolicy(
+        event_values={
+            "investigation.query_logs.app": 0.05,
+            "investigation.query_logs.dns-resolver": 0.10,
+            "investigation.query_logs.default": 0.03,
+            "investigation.check_metrics.dns-resolver.resolution_failures": 0.10,
+            "investigation.check_metrics.app": 0.03,
+            "investigation.check_metrics.load-balancer": 0.02,
+            "investigation.check_metrics.default": 0.02,
+            "investigation.check_deps.default": 0.03,
+            "investigation.check_config.dns-resolver": 0.05,
+            "investigation.check_config.app": 0.02,
+            "investigation.check_config.default": 0.01,
+            "diagnosis.correct": 0.20,
+            "diagnosis.wrong": 0.0,
+            "remediation.restart_service.dns-resolver": 0.15,
+            "remediation.wrong": 0.0,
+            "escalation.with_evidence": 0.15,
+            "escalation.no_evidence": 0.0,
+            "unknown_command": 0.0,
+            "invalid_input": 0.0,
+        },
+    ),
+}
+
+
+class RewardEngine:
+    """Deterministic event-based reward calculator shared by all scenarios."""
+
+    def __init__(self, policies: Mapping[str, RewardPolicy] | None = None) -> None:
+        self._policies = dict(policies or DEFAULT_REWARD_POLICIES)
+
+    def score(
+        self,
+        *,
+        task_name: str,
+        event: str,
+        duplicate: bool = False,
+        premature: bool = False,
+        destructive: bool = False,
+        resolved: bool = False,
+        step_number: int = 1,
+        max_steps: int = 1,
+    ) -> RewardResult:
+        """
+        Score a single scenario event.
+
+        Args:
+            task_name: Scenario/task identifier.
+            event: Canonical event key, e.g. "diagnosis.correct".
+            duplicate: True if this action repeats already-seen evidence.
+            premature: True if action happened before evidence threshold.
+            destructive: True for materially harmful wrong remediations.
+            resolved: True when this action resolves or ends the incident.
+            step_number: 1-based action index for optional timing bonuses.
+            max_steps: Episode step limit.
+        """
+        policy = self._policies.get(task_name)
+        if policy is None:
+            available = ", ".join(sorted(self._policies.keys()))
+            raise ValueError(
+                f"Unknown reward policy for task '{task_name}'. "
+                f"Available policies: [{available}]"
+            )
+
+        event_value = policy.event_values.get(event, 0.0)
+        effective_value = 0.0 if duplicate else event_value
+
+        investigation_reward = 0.0
+        diagnosis_reward = 0.0
+        diagnosis_penalty = 0.0
+        remediation_reward = 0.0
+        escalation_reward = 0.0
+
+        if event.startswith("investigation."):
+            investigation_reward = effective_value
+        elif event == "diagnosis.correct":
+            diagnosis_reward = effective_value
+        elif event.startswith("diagnosis."):
+            diagnosis_penalty = effective_value
+        elif event.startswith("remediation."):
+            remediation_reward = effective_value
+        elif event.startswith("escalation."):
+            escalation_reward = effective_value
+
+        redundancy_penalty = policy.redundancy_penalty if duplicate else 0.0
+        premature_penalty = policy.premature_penalty if premature else 0.0
+        destructive_penalty = policy.destructive_penalty if destructive else 0.0
+
+        time_pressure_cost = (
+            -policy.time_pressure_cost_per_step
+            if policy.time_pressure_cost_per_step > 0.0
+            else 0.0
+        )
+
+        efficiency_bonus = 0.0
+        if resolved and policy.efficiency_bonus_max > 0.0 and max_steps > 0:
+            bounded_step = min(max(step_number, 1), max_steps)
+            progress = bounded_step / max_steps
+            efficiency_bonus = policy.efficiency_bonus_max * (1.0 - progress)
+
+        total_unclamped = (
+            investigation_reward
+            + redundancy_penalty
+            + diagnosis_reward
+            + diagnosis_penalty
+            + remediation_reward
+            + destructive_penalty
+            + efficiency_bonus
+            + escalation_reward
+            + premature_penalty
+            + time_pressure_cost
+        )
+
+        breakdown = RewardBreakdown(
+            investigation_reward=investigation_reward,
+            redundancy_penalty=redundancy_penalty,
+            diagnosis_reward=diagnosis_reward,
+            diagnosis_penalty=diagnosis_penalty,
+            remediation_reward=remediation_reward,
+            destructive_penalty=destructive_penalty,
+            efficiency_bonus=efficiency_bonus,
+            escalation_reward=escalation_reward,
+            premature_penalty=premature_penalty,
+            time_pressure_cost=time_pressure_cost,
+            total_unclamped=total_unclamped,
+        )
+
+        return RewardResult(
+            reward=clamp_reward(total_unclamped),
+            breakdown=breakdown,
+        )

@@ -221,21 +221,6 @@ Recent config changes for database:
 """,
     }
 
-    # ── Reward constants ───────────────────────────────────────────────────────
-
-    REWARD_FIRST_AUTH_LOG = 0.05
-    REWARD_CHECK_CONFIG = 0.10      # Most valuable — directly reveals the typo
-    REWARD_METRIC_ERROR_RATE = 0.05
-    REWARD_METRIC_CONNECTIONS = 0.05
-    REWARD_CHECK_DEPS = 0.03
-    REWARD_CORRECT_DIAGNOSIS = 0.20
-    REWARD_CORRECT_REMEDIATION = 0.25
-    REWARD_ESCALATE_WITH_EVIDENCE = 0.15
-    PENALTY_WRONG_DIAGNOSIS = 0.0
-    PENALTY_WRONG_REMEDIATION = 0.0
-    PENALTY_ESCALATE_NO_EVIDENCE = 0.0
-    PENALTY_UNKNOWN = 0.0
-
     # ── Accepted answers ───────────────────────────────────────────────────────
 
     CORRECT_ROOT_CAUSES = frozenset({
@@ -284,24 +269,30 @@ Recent config changes for database:
         logs = self._LOGS.get(service)
 
         if logs is None:
+            score = self._score_event("invalid_input")
             return StepOutcome(
                 investigation_result=f"No log data available for service '{service}'.",
-                reward=self.clamp_reward(0.0),
+                reward=score.reward,
                 done=self.is_done(),
                 incident_resolved=self._incident_resolved,
                 root_cause_identified=self._root_cause_identified,
             )
 
         key = f"logs:{service}"
-        reward = 0.0
-        if key not in self._done_investigations:
+        duplicate = key in self._done_investigations
+        if not duplicate:
             self._done_investigations.add(key)
-            # Auth logs are the primary evidence — extra reward
-            reward = self.REWARD_FIRST_AUTH_LOG if service == "auth" else 0.03
+
+        event = (
+            "investigation.query_logs.auth"
+            if service == "auth"
+            else "investigation.query_logs.default"
+        )
+        score = self._score_event(event, duplicate=duplicate)
 
         return StepOutcome(
             investigation_result=logs,
-            reward=self.clamp_reward(reward),
+            reward=score.reward,
             done=self.is_done(),
             incident_resolved=self._incident_resolved,
             root_cause_identified=self._root_cause_identified,
@@ -313,31 +304,34 @@ Recent config changes for database:
         data = self._METRICS.get((service, metric))
 
         if data is None:
+            score = self._score_event("invalid_input")
             return StepOutcome(
                 investigation_result=(
                     f"No metric '{metric}' available for service '{service}'.\n"
                     f"Available metrics: error_rate, latency_p95, connections, "
                     f"memory, cpu, throughput"
                 ),
-                reward=self.clamp_reward(0.0),
+                reward=score.reward,
                 done=self.is_done(),
                 incident_resolved=self._incident_resolved,
                 root_cause_identified=self._root_cause_identified,
             )
 
         key = f"metric:{service}:{metric}"
-        reward = 0.0
-        if key not in self._done_investigations:
+        duplicate = key in self._done_investigations
+        if not duplicate:
             self._done_investigations.add(key)
-            reward = (
-                self.REWARD_METRIC_CONNECTIONS
-                if metric == "connections"
-                else self.REWARD_METRIC_ERROR_RATE
-            )
+
+        event = (
+            "investigation.check_metrics.connections"
+            if metric == "connections"
+            else "investigation.check_metrics.default"
+        )
+        score = self._score_event(event, duplicate=duplicate)
 
         return StepOutcome(
             investigation_result=data,
-            reward=self.clamp_reward(reward),
+            reward=score.reward,
             done=self.is_done(),
             incident_resolved=self._incident_resolved,
             root_cause_identified=self._root_cause_identified,
@@ -348,14 +342,15 @@ Recent config changes for database:
         data = self._DEPS.get(service, f"No dependency data for service '{service}'.")
 
         key = f"deps:{service}"
-        reward = 0.0
-        if key not in self._done_investigations:
+        duplicate = key in self._done_investigations
+        if not duplicate:
             self._done_investigations.add(key)
-            reward = self.REWARD_CHECK_DEPS
+
+        score = self._score_event("investigation.check_deps.default", duplicate=duplicate)
 
         return StepOutcome(
             investigation_result=data,
-            reward=self.clamp_reward(reward),
+            reward=score.reward,
             done=self.is_done(),
             incident_resolved=self._incident_resolved,
             root_cause_identified=self._root_cause_identified,
@@ -366,15 +361,20 @@ Recent config changes for database:
         data = self._CONFIGS.get(service, f"No config history for service '{service}'.")
 
         key = f"config:{service}"
-        reward = 0.0
-        if key not in self._done_investigations:
+        duplicate = key in self._done_investigations
+        if not duplicate:
             self._done_investigations.add(key)
-            # Auth config directly shows the typo — higher reward
-            reward = self.REWARD_CHECK_CONFIG if service == "auth" else 0.02
+
+        event = (
+            "investigation.check_config.auth"
+            if service == "auth"
+            else "investigation.check_config.default"
+        )
+        score = self._score_event(event, duplicate=duplicate)
 
         return StepOutcome(
             investigation_result=data,
-            reward=self.clamp_reward(reward),
+            reward=score.reward,
             done=self.is_done(),
             incident_resolved=self._incident_resolved,
             root_cause_identified=self._root_cause_identified,
@@ -387,6 +387,7 @@ Recent config changes for database:
 
         if normalised in self.CORRECT_ROOT_CAUSES:
             self._root_cause_identified = True
+            score = self._score_event("diagnosis.correct")
             return StepOutcome(
                 investigation_result=(
                     "✅ Correct diagnosis!\n\n"
@@ -395,20 +396,21 @@ Recent config changes for database:
                     "authdb.internal). The auth service cannot connect to its database.\n\n"
                     "Next step: roll back the deployment."
                 ),
-                reward=self.clamp_reward(self.REWARD_CORRECT_DIAGNOSIS),
+                reward=score.reward,
                 done=self.is_done(),
                 incident_resolved=False,  # Not resolved until remediation
                 root_cause_identified=True,
             )
         else:
             self._wrong_diagnoses += 1
+            score = self._score_event("diagnosis.wrong", premature=True)
             return StepOutcome(
                 investigation_result=(
                     f"❌ Incorrect diagnosis: '{raw_cause}'.\n\n"
                     "The investigation data doesn't support this conclusion. "
                     "Review the logs and config changes more carefully."
                 ),
-                reward=self.clamp_reward(self.PENALTY_WRONG_DIAGNOSIS),
+                reward=score.reward,
                 done=self.is_done(),
                 incident_resolved=False,
                 root_cause_identified=False,
@@ -423,6 +425,10 @@ Recent config changes for database:
             self._incident_resolved = True
             self._current_system_status["auth"] = "healthy"
             self._current_system_status["api"] = "healthy"
+            score = self._score_event(
+                "remediation.rollback_deploy.auth",
+                resolved=True,
+            )
             return StepOutcome(
                 investigation_result=(
                     "✅ Deployment rolled back successfully.\n\n"
@@ -433,7 +439,7 @@ Recent config changes for database:
                     "- API gateway: circuit breaker closed, upstream healthy\n\n"
                     "Incident resolved. Auth service operating normally."
                 ),
-                reward=self.clamp_reward(self.REWARD_CORRECT_REMEDIATION),
+                reward=score.reward,
                 done=True,
                 incident_resolved=True,
                 root_cause_identified=self._root_cause_identified,
@@ -442,12 +448,13 @@ Recent config changes for database:
 
         # Wrong service remediation
         elif action == self.CORRECT_REMEDIATION_ACTION:
+            score = self._score_event("remediation.wrong", destructive=True)
             return StepOutcome(
                 investigation_result=(
                     f"⚠️ Rolled back deployment on '{service}', but auth service is still "
                     f"critical. That wasn't the root cause service."
                 ),
-                reward=self.clamp_reward(self.PENALTY_WRONG_REMEDIATION),
+                reward=score.reward,
                 done=self.is_done(),
                 incident_resolved=False,
                 root_cause_identified=self._root_cause_identified,
@@ -455,13 +462,14 @@ Recent config changes for database:
 
         # Restart instead of rollback — won't fix a config typo
         elif action == "restart_service" and service == "auth":
+            score = self._score_event("remediation.wrong", destructive=True)
             return StepOutcome(
                 investigation_result=(
                     "Auth service restarted, but it's immediately failing again.\n"
                     "Error: Connection refused: postgres://auhdb.internal:5432/authdb\n\n"
                     "Restart doesn't fix the underlying issue — the config typo persists."
                 ),
-                reward=self.clamp_reward(self.PENALTY_WRONG_REMEDIATION),
+                reward=score.reward,
                 done=self.is_done(),
                 incident_resolved=False,
                 root_cause_identified=self._root_cause_identified,
@@ -469,21 +477,23 @@ Recent config changes for database:
 
         # Scale resource — irrelevant to this problem
         elif action == "scale_resource":
+            score = self._score_event("remediation.wrong", destructive=True)
             return StepOutcome(
                 investigation_result=(
                     "Scaling had no effect on auth error rate. "
                     "The problem isn't capacity — it's connectivity."
                 ),
-                reward=self.clamp_reward(self.PENALTY_WRONG_REMEDIATION),
+                reward=score.reward,
                 done=self.is_done(),
                 incident_resolved=False,
                 root_cause_identified=self._root_cause_identified,
             )
 
         else:
+            score = self._score_event("remediation.wrong", destructive=True)
             return StepOutcome(
                 investigation_result=f"Action '{action}' had no effect on the incident.",
-                reward=self.clamp_reward(self.PENALTY_WRONG_REMEDIATION),
+                reward=score.reward,
                 done=self.is_done(),
                 incident_resolved=False,
                 root_cause_identified=self._root_cause_identified,
@@ -496,6 +506,7 @@ Recent config changes for database:
         if num_investigations >= 3:
             # Escalated with reasonable evidence
             self._incident_resolved = True
+            score = self._score_event("escalation.with_evidence", resolved=True)
             return StepOutcome(
                 investigation_result=(
                     f"✅ Incident escalated to on-call lead with evidence.\n\n"
@@ -503,12 +514,13 @@ Recent config changes for database:
                     f"Investigations completed: {num_investigations}\n\n"
                     "Escalation accepted — on-call lead will drive resolution."
                 ),
-                reward=self.clamp_reward(self.REWARD_ESCALATE_WITH_EVIDENCE),
+                reward=score.reward,
                 done=True,
                 incident_resolved=True,
                 root_cause_identified=self._root_cause_identified,
             )
         else:
+            score = self._score_event("escalation.no_evidence", premature=True)
             return StepOutcome(
                 investigation_result=(
                     "⚠️ Escalation filed, but without sufficient evidence "
@@ -516,7 +528,7 @@ Recent config changes for database:
                     "On-call lead will have to investigate from scratch.\n\n"
                     "Tip: gather more evidence before escalating."
                 ),
-                reward=self.clamp_reward(self.PENALTY_ESCALATE_NO_EVIDENCE),
+                reward=score.reward,
                 done=True,
                 incident_resolved=False,
                 root_cause_identified=self._root_cause_identified,
