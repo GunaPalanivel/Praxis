@@ -9,8 +9,9 @@ This documentation set describes the repository as it exists today:
 - ASCII-normalized observation text for stable local console output
 - Centralized per-step reward engine in `server/reward.py`
 - Per-step rewards in `[0.0, 1.0]`
+- Root-level baseline script `inference.py` with strict `[START]/[STEP]/[END]` output contract
 
-Planned later phases still include `inference.py` and Docker packaging.
+Planned later phases include Docker packaging and HF Space deployment hardening.
 
 ---
 
@@ -35,12 +36,14 @@ incident response. The agent receives an incident alert, inspects logs and
 metrics, checks service dependencies, and then decides whether to diagnose,
 remediate, or escalate.
 
-The current repo focuses on the first four implementation phases:
+The current repo includes implementation through Phase 7:
 
 - Phase 1-2: environment models, parser, server routes, and lifecycle
 - Phase 3: `single-service-alert`
 - Phase 4: `cascading-failure`
 - Phase 5: `ambiguous-incident`
+- Phase 6: centralized reward engine and quality gates
+- Phase 7: baseline inference script and output-contract tests
 
 If you need the live contract, use the code and passing tests as the source of
 truth, then use these docs as the synced explanation of that state.

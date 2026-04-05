@@ -98,21 +98,39 @@ pytest tests/ -v --tb=short
 Focused validation for the current implemented tasks:
 
 ```bash
-pytest tests/test_task1_single_service_alert.py tests/test_task2_cascading_failure.py -v
+pytest tests/test_task1_single_service_alert.py tests/test_task2_cascading_failure.py tests/test_task3_ambiguous_incident.py -v
+```
+
+Contract-focused baseline inference tests:
+
+```bash
+pytest tests/test_inference.py -v
+```
+
+---
+
+## Run baseline inference
+
+With the server running:
+
+```bash
+python inference.py
+```
+
+This emits strict one-line records for each task:
+
+```text
+[START] task=<task_name> env=praxis model=<model_name>
+[STEP] step=<n> action=<action_str> reward=<0.00> done=<true|false> error=<msg|null>
+[END] success=<true|false> steps=<n> rewards=<r1,r2,...,rn>
 ```
 
 ---
 
 ## Current repo boundaries
 
-The current repository does **not** yet include:
-
-- a root submission `README.md`
-- `inference.py`
-- Docker packaging
-
-Those are later-phase deliverables. The local development workflow today is the
-FastAPI server plus the pytest suite.
+The current repository includes the baseline inference script and test suite.
+Docker packaging and deployment hardening remain later-phase deliverables.
 
 ---
 
