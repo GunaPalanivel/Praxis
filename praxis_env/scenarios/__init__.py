@@ -9,12 +9,13 @@ server during reset() and stepped through during the episode.
 from praxis_env.scenarios.base import BaseScenario
 from praxis_env.scenarios.single_service_alert import SingleServiceAlertScenario
 from praxis_env.scenarios.cascading_failure import CascadingFailureScenario
+from praxis_env.scenarios.ambiguous_incident import AmbiguousIncidentScenario
 
 # Populated as phases complete. Add new scenarios here.
 SCENARIO_REGISTRY: dict[str, type[BaseScenario]] = {
     "single-service-alert": SingleServiceAlertScenario,
     "cascading-failure": CascadingFailureScenario,
-    # "ambiguous-incident": AmbiguousIncidentScenario,    ← Phase 5
+    "ambiguous-incident": AmbiguousIncidentScenario,
 }
 
 

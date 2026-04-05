@@ -25,6 +25,7 @@ class TestPraxisEnvironmentInit:
         assert isinstance(tasks, list)
         assert "single-service-alert" in tasks
         assert "cascading-failure" in tasks
+        assert "ambiguous-incident" in tasks
 
     def test_step_before_reset_raises_runtime_error(self):
         env = PraxisEnvironment()
@@ -137,11 +138,26 @@ class TestScenarioObservationContracts:
         ]
         assert "cascading-failure" in env.list_tasks()
 
+    def test_ambiguous_incident_reset_contract(self):
+        env = PraxisEnvironment()
+        obs = env.reset(task_name="ambiguous-incident")
+        assert obs.severity == "P2"
+        assert obs.step_number == 0
+        assert obs.services_affected == [
+            "frontend",
+            "api",
+            "auth",
+            "search",
+            "dns-resolver",
+        ]
+        assert "ambiguous-incident" in env.list_tasks()
+
     @pytest.mark.parametrize(
         ("task_name", "command"),
         [
             ("single-service-alert", "query_logs service=auth timerange=5m"),
             ("cascading-failure", "query_logs service=api timerange=10m"),
+            ("ambiguous-incident", "query_logs service=frontend timerange=10m"),
         ],
     )
     def test_reset_and_step_payloads_are_ascii_safe(self, task_name, command):

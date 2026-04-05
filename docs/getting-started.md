@@ -43,10 +43,7 @@ Expected task output:
 
 ```json
 {
-  "tasks": [
-    "cascading-failure",
-    "single-service-alert"
-  ]
+  "tasks": ["ambiguous-incident", "cascading-failure", "single-service-alert"]
 }
 ```
 
@@ -113,8 +110,6 @@ The current repository does **not** yet include:
 - a root submission `README.md`
 - `inference.py`
 - Docker packaging
-- `openenv.yaml`
-- the planned Task 3 scenario
 
 Those are later-phase deliverables. The local development workflow today is the
 FastAPI server plus the pytest suite.
