@@ -4,6 +4,9 @@ server.praxis_environment — Core environment logic.
 This module implements the Environment interface expected by openenv-core.
 It is loaded by server/app.py and mounted into the FastAPI application.
 
+Command parsing is delegated to server.command_parser — this module never
+does raw string parsing itself.
+
 Flow:
     POST /reset  → praxis_environment.reset() → PraxisObservation
     POST /step   → praxis_environment.step()  → StepResult
@@ -21,12 +24,12 @@ Design choices:
 from __future__ import annotations
 
 import logging
-import uuid
 from typing import Any
 
 from praxis_env.models import PraxisAction, PraxisObservation, PraxisState
 from praxis_env.scenarios import get_scenario, list_tasks
-from praxis_env.scenarios.base import BaseScenario, ParsedCommand, StepOutcome
+from praxis_env.scenarios.base import BaseScenario, StepOutcome
+from server.command_parser import parse_command
 
 logger = logging.getLogger(__name__)
 
@@ -100,7 +103,7 @@ class PraxisEnvironment:
         logger.debug("step() → command=%r", action.command)
 
         # Parse command string → structured ParsedCommand
-        parsed = self._parse_command(action.command)
+        parsed = parse_command(action.command)
 
         # Delegate to active scenario
         outcome: StepOutcome = self._scenario.step(parsed)
@@ -146,52 +149,6 @@ class PraxisEnvironment:
     def list_tasks(self) -> list[str]:
         """Return all available task names."""
         return list_tasks()
-
-    # ── Command parsing ───────────────────────────────────────────────────────
-
-    @staticmethod
-    def _parse_command(raw: str) -> ParsedCommand:
-        """
-        Parse a command string into a ParsedCommand.
-
-        Grammar:
-            <action_type> [key=value ...]
-
-        Examples:
-            "query_logs service=auth timerange=5m"
-            → ParsedCommand(action_type="query_logs",
-                            params={"service": "auth", "timerange": "5m"})
-
-            "diagnose root_cause=bad_config"
-            → ParsedCommand(action_type="diagnose",
-                            params={"root_cause": "bad_config"})
-
-            "escalate reason=DNS misconfiguration detected"
-            → ParsedCommand(action_type="escalate",
-                            params={"reason": "DNS misconfiguration detected"})
-        """
-        raw = raw.strip()
-        if not raw:
-            return ParsedCommand(action_type="", params={}, raw=raw)
-
-        parts = raw.split(maxsplit=1)
-        action_type = parts[0].lower()
-
-        params: dict[str, str] = {}
-        if len(parts) > 1:
-            remainder = parts[1]
-            # Special case: "escalate reason=<free text>"
-            if action_type == "escalate" and "reason=" in remainder:
-                reason_val = remainder.split("reason=", 1)[1]
-                params["reason"] = reason_val.strip().strip("'\"")
-            else:
-                # Parse key=value pairs
-                for token in remainder.split():
-                    if "=" in token:
-                        k, _, v = token.partition("=")
-                        params[k.lower()] = v.strip().strip("'\"")
-
-        return ParsedCommand(action_type=action_type, params=params, raw=raw)
 
     @staticmethod
     def _obs_to_dict(obs: PraxisObservation) -> dict[str, Any]:
