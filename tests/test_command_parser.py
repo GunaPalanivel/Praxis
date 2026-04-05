@@ -6,12 +6,11 @@ escalate free text, mixed quoting).
 """
 
 import pytest
-from server.command_parser import (
+from server.command_parser import is_known_action, parse_command
+from praxis_env.scenarios.base import (
     get_metric_param,
     get_service_param,
     get_timerange_minutes,
-    is_known_action,
-    parse_command,
 )
 
 

@@ -21,7 +21,7 @@ Usage:
 from __future__ import annotations
 
 import re
-from praxis_env.scenarios.base import ParsedCommand
+from praxis_env.models import ParsedCommand
 
 # All known action types — anything else is treated as unknown
 KNOWN_ACTIONS: frozenset[str] = frozenset({
@@ -107,27 +107,3 @@ def is_known_action(action_type: str) -> bool:
     """Return True if the action type is one the environment understands."""
     return action_type.lower() in KNOWN_ACTIONS
 
-
-def get_service_param(params: dict[str, str], default: str = "") -> str:
-    """Extract and return the 'service' param, case-normalised."""
-    return params.get("service", default).lower().strip()
-
-
-def get_metric_param(params: dict[str, str], default: str = "") -> str:
-    """Extract and return the 'metric' param."""
-    return params.get("metric", default).lower().strip()
-
-
-def get_timerange_minutes(params: dict[str, str], default: int = 5) -> int:
-    """
-    Parse the timerange param (e.g. '5m', '15m') into an integer number of minutes.
-    Returns default if param is missing or unparseable.
-    """
-    raw_tr = params.get("timerange", "")
-    if not raw_tr:
-        return default
-    # Strip trailing 'm' and parse
-    try:
-        return int(raw_tr.rstrip("m").strip())
-    except ValueError:
-        return default

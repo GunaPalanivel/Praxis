@@ -52,7 +52,14 @@ docs/                ← This documentation
 
 **Quick template:**
 ```python
-from praxis_env.scenarios.base import BaseScenario, ParsedCommand, StepOutcome
+from praxis_env.scenarios.base import (
+    BaseScenario,
+    ParsedCommand,
+    StepOutcome,
+    get_service_param,   # ← helpers live here, NOT in server/
+    get_metric_param,
+    get_timerange_minutes,
+)
 
 class YourScenario(BaseScenario):
     NAME = "your-scenario-name"

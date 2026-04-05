@@ -15,6 +15,31 @@ from typing import Any
 
 
 @dataclass
+class ParsedCommand:
+    """Structured representation of a parsed action command string."""
+
+    action_type: str
+    params: dict[str, str] = field(default_factory=dict)
+    raw: str = ""
+
+
+@dataclass
+class StepOutcome:
+    """
+    Internal result from a scenario processing a command.
+    Converted to HTTP response by the environment server.
+    """
+
+    investigation_result: str
+    reward: float
+    done: bool
+    incident_resolved: bool
+    root_cause_identified: bool
+    info: dict[str, Any] = field(default_factory=dict)
+
+
+
+@dataclass
 class PraxisAction:
     """
     What the agent sends to the environment each step.

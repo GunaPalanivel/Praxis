@@ -22,38 +22,15 @@ Extending Praxis with new scenarios:
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
 from typing import Any
 
 from praxis_env.models import (
     AVAILABLE_COMMANDS,
+    ParsedCommand,
     PraxisObservation,
     PraxisState,
+    StepOutcome,
 )
-
-
-@dataclass
-class ParsedCommand:
-    """Structured representation of a parsed action command string."""
-
-    action_type: str                      # "query_logs", "diagnose", "escalate", etc.
-    params: dict[str, str] = field(default_factory=dict)  # key=value pairs
-    raw: str = ""                         # Original command string
-
-
-@dataclass
-class StepOutcome:
-    """
-    Internal result from a scenario processing a command.
-    Converted to StepResult by the environment server.
-    """
-
-    investigation_result: str             # Text shown to agent in next observation
-    reward: float                         # Per-step reward (MUST be pre-clamped to [0,1])
-    done: bool                            # Episode ended?
-    incident_resolved: bool               # Root cause + remediation complete?
-    root_cause_identified: bool           # Correct diagnose issued?
-    info: dict[str, Any] = field(default_factory=dict)
 
 
 class BaseScenario(ABC):
@@ -179,8 +156,8 @@ class BaseScenario(ABC):
 
     @staticmethod
     def clamp_reward(reward: float) -> float:
-        """Clamp reward to [0.0, 1.0]. Always apply before returning."""
-        return max(0.0, min(1.0, reward))
+        """Clamp reward to [-1.0, 1.0]. Negative values are valid penalty signals."""
+        return max(-1.0, min(1.0, reward))
 
     def _handle_unknown_command(self, raw_command: str) -> StepOutcome:
         """
@@ -199,3 +176,31 @@ class BaseScenario(ABC):
             root_cause_identified=self._root_cause_identified,
             info={"error": "unknown_command", "raw": raw_command},
         )
+
+
+# ── Param extraction helpers (used by all scenario step() handlers) ───────────
+# Live here so scenarios import from praxis_env.scenarios.base,
+# not from server/ (which would create a circular import).
+
+def get_service_param(params: dict[str, str], default: str = "") -> str:
+    """Extract and return the 'service' param, lowercased."""
+    return params.get("service", default).lower().strip()
+
+
+def get_metric_param(params: dict[str, str], default: str = "") -> str:
+    """Extract and return the 'metric' param, lowercased."""
+    return params.get("metric", default).lower().strip()
+
+
+def get_timerange_minutes(params: dict[str, str], default: int = 5) -> int:
+    """
+    Parse the timerange param (e.g. '5m', '15m') into an integer number of minutes.
+    Returns default if param is missing or unparseable.
+    """
+    raw_tr = params.get("timerange", "")
+    if not raw_tr:
+        return default
+    try:
+        return int(raw_tr.rstrip("m").strip())
+    except ValueError:
+        return default
