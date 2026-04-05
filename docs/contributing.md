@@ -1,103 +1,136 @@
 # Contributing to Praxis
 
-We welcome contributions — new scenarios, bug fixes, documentation improvements, and reward function enhancements.
+Contributions are welcome: new scenarios, bug fixes, test improvements, and
+documentation cleanup all help.
 
-## Development Setup
+---
+
+## Development setup
 
 ```bash
-git clone https://github.com/your-org/praxis-env
-cd praxis-env
 pip install -e ".[dev]"
 ```
 
-## Running Tests
+---
+
+## Running tests
 
 ```bash
-# All tests
-pytest tests/ -v
-
-# Specific test file
-pytest tests/test_models.py -v
-
-# With coverage report
-pytest tests/ --cov=praxis_env --cov=server --cov-report=term-missing
+pytest tests/ -v --tb=short
 ```
 
-## Project Structure
+Targeted checks for the current implemented tasks:
 
+```bash
+pytest tests/test_task1_single_service_alert.py tests/test_task2_cascading_failure.py -v
 ```
-praxis_env/          ← Environment package (imported by inference.py)
-  models.py          ← Dataclass models — PraxisAction, PraxisObservation, PraxisState
-  client.py          ← HTTP client for connecting to the server
+
+---
+
+## Current project structure
+
+```text
+praxis_env/
+  models.py
+  client.py
   scenarios/
-    base.py          ← BaseScenario abstract class
-    *.py             ← Individual scenario implementations
+    __init__.py
+    base.py
+    single_service_alert.py
+    cascading_failure.py
 
-server/              ← FastAPI server (runs in Docker container)
-  praxis_environment.py  ← Core reset/step/state logic
-  app.py             ← HTTP routes and middleware
-  reward.py          ← Reward calculator (added in Phase 6)
-  command_parser.py  ← Command string parser (added in Phase 2)
+server/
+  app.py
+  command_parser.py
+  praxis_environment.py
+  requirements.txt
 
-tests/               ← pytest test suite
-docs/                ← This documentation
+tests/
+  test_imports.py
+  test_models.py
+  test_command_parser.py
+  test_environment.py
+  test_task1_single_service_alert.py
+  test_task2_cascading_failure.py
+
+docs/
+  README.md
+  getting-started.md
+  action-space.md
+  observation-space.md
+  tasks.md
+  api-reference.md
+  configuration.md
+  contributing.md
 ```
 
-## Adding a New Scenario
+Key implementation note:
 
-1. Create `praxis_env/scenarios/your_scenario.py` — subclass `BaseScenario`
-2. Implement: `_reset_scenario_state()`, `step()`, `get_initial_observation_text()`
-3. Register in `praxis_env/scenarios/__init__.py`
-4. Write tests: determinism check (3× same actions), reward bounds check
+- scenario classes own domain logic and return `StepOutcome`
+- `PraxisEnvironment.step()` owns `step_count` and `cumulative_reward` bookkeeping
 
-**Quick template:**
+---
+
+## Adding a new scenario
+
+1. Create `praxis_env/scenarios/<your_scenario>.py`.
+2. Subclass `BaseScenario`.
+3. Implement `_reset_scenario_state()`, `step()`, and `get_initial_observation_text()`.
+4. Register the new scenario in `praxis_env/scenarios/__init__.py`.
+5. Add a dedicated scenario test file under `tests/`.
+6. Update shared environment-contract tests if the public surface changes.
+
+Minimal template:
+
 ```python
-from praxis_env.scenarios.base import (
-    BaseScenario,
-    ParsedCommand,
-    StepOutcome,
-    get_service_param,   # ← helpers live here, NOT in server/
-    get_metric_param,
-    get_timerange_minutes,
-)
+from praxis_env.scenarios.base import BaseScenario, ParsedCommand, StepOutcome
+
 
 class YourScenario(BaseScenario):
-    NAME = "your-scenario-name"
+    NAME = "your-scenario"
     SEVERITY = "P2"
     MAX_STEPS = 15
-    ALERT_SUMMARY = "## 🚨 Your incident description"
+    ALERT_SUMMARY = "## INCIDENT ALERT"
     INITIAL_SYSTEM_STATUS = {"service-a": "critical"}
     INITIAL_AFFECTED_SERVICES = ["service-a"]
 
     def _reset_scenario_state(self) -> None:
-        self._investigations_done: set = set()
+        self._seen: set[str] = set()
 
     def step(self, command: ParsedCommand) -> StepOutcome:
         if command.action_type == "query_logs":
             return StepOutcome(
-                investigation_result="Log output here",
+                investigation_result="Example log line",
                 reward=self.clamp_reward(0.05),
                 done=self.is_done(),
                 incident_resolved=self._incident_resolved,
                 root_cause_identified=self._root_cause_identified,
             )
+
         return self._handle_unknown_command(command.raw)
 
     def get_initial_observation_text(self) -> str:
         return ""
 ```
 
-## Code Standards
+---
 
-- **No randomness** — scenarios must be fully deterministic
-- **Typed** — all functions and class variables have type hints
-- **No crashes on bad input** — `step()` must handle any string gracefully
-- **Rewards clamped** — always use `self.clamp_reward(value)` before returning
+## Code standards
 
-## Pull Request Checklist
+- Keep scenarios deterministic.
+- Handle bad input without raising exceptions from `step()`.
+- Clamp rewards with `self.clamp_reward(...)`.
+- Return service names in `services_affected`; let the base observation builder
+  derive that list from the current status map.
+- Do not mutate `_step_count` or `_cumulative_reward` inside scenario code.
+- Keep scenario text ASCII-friendly when practical.
 
-- [ ] New scenario follows `BaseScenario` contract
-- [ ] `SCENARIO_REGISTRY` updated in `scenarios/__init__.py`
-- [ ] Tests added: optimal path score, determinism (3×), reward bounds
-- [ ] `pytest tests/ -v` passes with no failures
-- [ ] No hardcoded secrets
+---
+
+## Pull request checklist
+
+- [ ] Scenario registry updated if you added a task
+- [ ] Scenario-specific tests added or updated
+- [ ] `pytest tests/ -v --tb=short` passes
+- [ ] No broken links introduced in `docs/`
+- [ ] No hardcoded secrets added

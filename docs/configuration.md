@@ -1,42 +1,42 @@
 # Configuration
 
-Configure Praxis using environment variables.
+Praxis currently has a small runtime configuration surface.
 
-## Required (for inference.py)
+---
 
-| Variable | Description | Example |
-|---|---|---|
-| `HF_TOKEN` | HuggingFace API key used as the OpenAI client API key | `hf_abc123...` |
-| `API_BASE_URL` | LLM inference endpoint (OpenAI-compatible) | `https://router.huggingface.co/v1` |
-| `MODEL_NAME` | Model identifier | `Qwen/Qwen2.5-72B-Instruct` |
-
-## Optional (server tuning)
+## Current server settings
 
 | Variable | Default | Description |
 |---|---|---|
-| `LOG_LEVEL` | `INFO` | Server log level: `DEBUG` · `INFO` · `WARNING` · `ERROR` |
-| `PORT` | `7860` | Server port (HF Spaces requires `7860`) |
+| `LOG_LEVEL` | `INFO` | Python logging level for the FastAPI server |
 
-## Setting Variables
+Example:
 
-**Locally:**
 ```bash
-export HF_TOKEN=hf_your_token_here
-export API_BASE_URL=https://router.huggingface.co/v1
-export MODEL_NAME=Qwen/Qwen2.5-72B-Instruct
-python inference.py
+LOG_LEVEL=DEBUG python -m uvicorn server.app:app --host 0.0.0.0 --port 7860
 ```
 
-**Docker:**
-```bash
-docker run -p 7860:7860 \
-  -e HF_TOKEN=hf_your_token_here \
-  -e API_BASE_URL=https://router.huggingface.co/v1 \
-  -e MODEL_NAME=Qwen/Qwen2.5-72B-Instruct \
-  praxis-env
-```
+---
 
-**HuggingFace Spaces:**  
-Add these as Space Secrets in your HF Space settings. They are injected automatically at runtime.
+## Current runtime conventions
 
-> ⚠️ Never commit API keys to the repository. Always use environment variables or HF Space Secrets.
+- The docs and examples assume the server is running on port `7860`.
+- Port selection currently comes from the `uvicorn` command you run locally.
+- Observation payloads are ASCII-normalized by the server; no environment
+  variable is needed to enable that behavior.
+
+---
+
+## Planned submission variables
+
+These variables are part of later submission phases and are **not** consumed by
+the current server implementation:
+
+| Variable | Planned use |
+|---|---|
+| `HF_TOKEN` | API key for the future baseline agent |
+| `API_BASE_URL` | OpenAI-compatible inference endpoint for the future baseline |
+| `MODEL_NAME` | Model identifier for the future baseline |
+
+Until `inference.py` is added, they should be treated as reserved future config,
+not active runtime requirements.

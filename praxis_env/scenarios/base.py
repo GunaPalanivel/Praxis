@@ -109,8 +109,10 @@ class BaseScenario(ABC):
         Implementation rules:
             - NEVER raise exceptions — return an error StepOutcome instead
             - NEVER use randomness — pure function over deterministic state
-            - ALWAYS clamp reward to [0.0, 1.0] before returning
-            - Increment self._step_count BEFORE computing done
+            - ALWAYS clamp reward to [-1.0, 1.0] before returning
+            - Do not mutate self._step_count or cumulative reward here;
+              PraxisEnvironment applies that bookkeeping after the outcome
+              is returned.
         """
         ...
 
@@ -133,9 +135,11 @@ class BaseScenario(ABC):
             available_commands=list(AVAILABLE_COMMANDS),
             time_elapsed_minutes=float(self._step_count * 2.5),  # 2.5 min per step
             severity=self.SEVERITY,
-            services_affected=list(self._current_system_status.get(s, "")
-                                   for s in self.INITIAL_AFFECTED_SERVICES
-                                   if self._current_system_status.get(s) != "healthy"),
+            services_affected=[
+                service
+                for service in self.INITIAL_AFFECTED_SERVICES
+                if self._current_system_status.get(service) != "healthy"
+            ],
             step_number=self._step_count,
         )
 

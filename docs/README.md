@@ -1,6 +1,16 @@
 # Praxis Documentation
 
-Production Incident Response Training Ground for AI Agents.
+Current development docs for the Praxis incident-response environment.
+
+This documentation set describes the repository as it exists today:
+
+- FastAPI server with `POST /reset`, `POST /step`, `GET /state`, `GET /tasks`, and `GET /health`
+- Two implemented tasks: `single-service-alert` and `cascading-failure`
+- ASCII-normalized observation text for stable local console output
+- Signed per-step rewards in `[-1.0, 1.0]`
+
+Planned later phases still include the hard third task, a root submission `README.md`,
+`inference.py`, Docker packaging, and a centralized reward module.
 
 ---
 
@@ -8,28 +18,28 @@ Production Incident Response Training Ground for AI Agents.
 
 | Guide | Description |
 |---|---|
-| [Getting Started](./getting-started.md) | Install, run, and call your first episode in 5 minutes |
-| [Action Space](./action-space.md) | All commands the agent can send |
-| [Observation Space](./observation-space.md) | All fields the agent receives |
-| [Tasks & Difficulty](./tasks.md) | The 3 scenarios — easy, medium, hard |
-| [Reward Function](./reward-function.md) | How scoring works, what's rewarded and penalized |
-| [API Reference](./api-reference.md) | HTTP endpoint specs — `/reset`, `/step`, `/state` |
-| [Configuration](./configuration.md) | Environment variables, deployment settings |
-| [Contributing](./contributing.md) | How to add scenarios, submit fixes, run tests |
+| [Getting Started](./getting-started.md) | Install the repo, run the server, and play a first episode |
+| [Action Space](./action-space.md) | Command grammar and supported agent actions |
+| [Observation Space](./observation-space.md) | Observation fields and current response semantics |
+| [Tasks](./tasks.md) | Current task catalog: 2 implemented tasks and 1 planned task |
+| [API Reference](./api-reference.md) | HTTP endpoint contracts for the current server |
+| [Configuration](./configuration.md) | Current runtime settings and planned submission variables |
+| [Contributing](./contributing.md) | How to add scenarios, update docs, and extend tests |
 
 ---
 
 ## What is Praxis?
 
-Praxis is an [OpenEnv](https://github.com/meta-pytorch/openenv)-compatible reinforcement learning environment that trains AI agents to handle production incidents — the same work SRE and on-call engineers do every day.
+Praxis is an OpenEnv-style environment for training AI agents on production
+incident response. The agent receives an incident alert, inspects logs and
+metrics, checks service dependencies, and then decides whether to diagnose,
+remediate, or escalate.
 
-An agent connected to Praxis receives **incident alerts**, **system dashboards**, **logs**, and **metrics**, then must investigate, diagnose, and remediate — or escalate if the situation exceeds its confidence.
+The current repo focuses on the first four implementation phases:
 
-### Why This Matters
+- Phase 1-2: environment models, parser, server routes, and lifecycle
+- Phase 3: `single-service-alert`
+- Phase 4: `cascading-failure`
 
-Every tech company running production services needs engineers on-call 24/7 to handle incidents. Training agents to assist — or one day replace — human on-call engineers is one of the highest-value applications of AI in infrastructure automation.
-
-Praxis provides:
-- **3 tasks** spanning easy (single service, obvious cause) to hard (ambiguous, multi-service, infrastructure-layer)
-- **Dense reward signals** that reward investigation quality, diagnosis accuracy, and remediation correctness
-- **Genuine difficulty** — the hard task exposes real gaps in frontier model reasoning
+If you need the live contract, use the code and passing tests as the source of
+truth, then use these docs as the synced explanation of that state.

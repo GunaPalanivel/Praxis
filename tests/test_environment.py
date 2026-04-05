@@ -2,8 +2,8 @@
 tests/test_environment.py — Phase 2: environment lifecycle tests.
 
 Tests the PraxisEnvironment's reset/step/state contract independent
-of any specific scenario (scenarios are not registered yet — we test
-the error paths and the contract in isolation).
+of any specific scenario details, plus shared observation contract
+regressions that apply across registered scenarios.
 
 Full round-trip tests (with scenarios) land in tests/test_scenarios.py
 in Phases 3-5.
@@ -19,11 +19,12 @@ class TestPraxisEnvironmentInit:
         env = PraxisEnvironment()
         assert env is not None
 
-    def test_list_tasks_empty_before_scenarios_registered(self):
+    def test_list_tasks_returns_registered_scenarios(self):
         env = PraxisEnvironment()
         tasks = env.list_tasks()
         assert isinstance(tasks, list)
-        # Empty is correct — scenarios populated in Phases 3-5
+        assert "single-service-alert" in tasks
+        assert "cascading-failure" in tasks
 
     def test_step_before_reset_raises_runtime_error(self):
         env = PraxisEnvironment()
@@ -119,3 +120,37 @@ class TestObsToDict:
         # This will raise if anything is not JSON serialisable
         serialised = json.dumps(d)
         assert "test" in serialised
+
+
+class TestScenarioObservationContracts:
+    def test_cascading_failure_reset_contract(self):
+        env = PraxisEnvironment()
+        obs = env.reset(task_name="cascading-failure")
+        assert obs.severity == "P1"
+        assert obs.step_number == 0
+        assert obs.services_affected == [
+            "api",
+            "auth",
+            "payment",
+            "database",
+            "cache",
+        ]
+        assert "cascading-failure" in env.list_tasks()
+
+    @pytest.mark.parametrize(
+        ("task_name", "command"),
+        [
+            ("single-service-alert", "query_logs service=auth timerange=5m"),
+            ("cascading-failure", "query_logs service=api timerange=10m"),
+        ],
+    )
+    def test_reset_and_step_payloads_are_ascii_safe(self, task_name, command):
+        env = PraxisEnvironment()
+        obs = env.reset(task_name=task_name)
+        assert obs.alert_summary.isascii()
+        assert obs.investigation_result.isascii()
+
+        result = env.step(PraxisAction(command=command))
+        observation = result["observation"]
+        assert observation["alert_summary"].isascii()
+        assert observation["investigation_result"].isascii()

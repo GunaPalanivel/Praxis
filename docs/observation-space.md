@@ -1,19 +1,28 @@
 # Observation Space
 
-Every response from `POST /reset` and `POST /step` includes an observation object with these fields.
+Every response from `POST /reset` and `POST /step` includes a
+`PraxisObservation` payload.
+
+Current behavior to document:
+
+- `alert_summary` and `investigation_result` are ASCII-normalized.
+- `services_affected` contains service names, not status labels.
+- `time_elapsed_minutes` advances by `2.5` minutes per completed step.
+
+---
 
 ## Fields
 
 | Field | Type | Description |
 |---|---|---|
-| `alert_summary` | `string` | Markdown-formatted incident description. Always present. |
-| `system_status` | `object` | Map of service name → health status |
-| `investigation_result` | `string` | Output of the last command. Empty string on first observation. |
-| `available_commands` | `array[string]` | Command templates the agent can use |
-| `time_elapsed_minutes` | `float` | Minutes since the incident started (increases each step) |
-| `severity` | `string` | Incident severity: `"P0"` · `"P1"` · `"P2"` · `"P3"` |
-| `services_affected` | `array[string]` | Services currently showing issues |
-| `step_number` | `integer` | Current step count (0 on reset, increments with each step) |
+| `alert_summary` | `string` | Current incident description in ASCII-safe markdown text |
+| `system_status` | `object` | Map of service name to status |
+| `investigation_result` | `string` | Output of the most recent command; empty on reset |
+| `available_commands` | `array[string]` | Command templates supported by the server |
+| `time_elapsed_minutes` | `float` | Elapsed incident time based on completed steps |
+| `severity` | `string` | One of `P0`, `P1`, `P2`, `P3` |
+| `services_affected` | `array[string]` | Service names whose current status is not `healthy` |
+| `step_number` | `integer` | Current completed-step count |
 
 ---
 
@@ -23,12 +32,13 @@ Each service maps to one of four health states:
 
 | Status | Meaning |
 |---|---|
-| `"healthy"` | Service is operating normally |
-| `"degraded"` | Service is experiencing elevated errors or latency |
-| `"critical"` | Service is largely failing; major user impact |
-| `"down"` | Service is completely unavailable |
+| `healthy` | Service is operating normally |
+| `degraded` | Service is partially impacted |
+| `critical` | Service is heavily impacted |
+| `down` | Service is unavailable |
 
 Example:
+
 ```json
 {
   "auth": "critical",
@@ -44,40 +54,60 @@ Example:
 
 | Level | Meaning |
 |---|---|
-| `P0` | Complete outage — all users affected |
-| `P1` | Major degradation — most users affected |
-| `P2` | Partial degradation — some users affected |
-| `P3` | Minor issue — few users affected |
+| `P0` | Complete outage |
+| `P1` | Major degradation |
+| `P2` | Partial degradation |
+| `P3` | Minor issue |
+
+---
+
+## Text normalization
+
+The live code normalizes scenario text to ASCII before it leaves the server.
+This keeps Windows console output, test snapshots, and local debugging stable.
+
+Examples of what that means in practice:
+
+- rich punctuation is flattened to ASCII equivalents
+- emoji-style alert markers are removed or replaced
+- payload examples in these docs should stay ASCII-safe too
 
 ---
 
 ## `investigation_result`
 
-The text output of the last command. Content depends on the command issued:
+This field depends on the command just executed.
 
-**After `query_logs`:**
-```
-14:27:01 [ERROR] Connection refused: postgres://db.internal:5432/auhdb
-14:28:15 [ERROR] Connection refused: postgres://db.internal:5432/auhdb
-14:29:00 [ERROR] Connection pool exhausted
-14:30:22 [WARN] Health check failed
-```
+After `query_logs`:
 
-**After `check_metrics`:**
-```
-error_rate → Current: 15.2% | 1h avg: 8.1% | 24h avg: 0.12%
+```text
+14:27:01 [ERROR] Connection refused: postgres://auhdb.internal:5432/authdb
+14:27:15 [ERROR] Token validation failed - database unreachable
+14:27:30 [WARN]  Retrying database connection (attempt 3/3)... failed
 ```
 
-**After `check_deps`:**
-```
-auth depends on: [database]
-  database → healthy
-Connection string: postgres://db.internal:5432/auhdb
+After `check_metrics`:
+
+```text
+error_rate
+  Current (1m):  15.2%
+  1h average:     8.1%
+  24h average:    0.12%
 ```
 
-**After an invalid command:**
+After `check_deps`:
+
+```text
+auth service dependencies:
+  -> database  [postgres://auhdb.internal:5432/authdb]  FAILING - host unreachable
 ```
-Unknown command: 'foo bar'. Available commands:
+
+After an invalid command:
+
+```text
+Unknown command: 'foo bar'
+
+Available commands:
   query_logs service=<name> timerange=<N>m
   check_metrics service=<name> metric=<type>
   ...
@@ -85,18 +115,18 @@ Unknown command: 'foo bar'. Available commands:
 
 ---
 
-## Full Example Response
+## Full example response
 
 ```json
 {
-  "alert_summary": "## 🚨 INCIDENT ALERT\n\n**Alert ID**: AUTH-001\n...",
+  "alert_summary": "## INCIDENT ALERT\n\n**Alert ID**: AUTH-001\n...",
   "system_status": {
     "auth": "critical",
-    "api": "healthy",
+    "api": "degraded",
     "payment": "healthy",
     "database": "healthy"
   },
-  "investigation_result": "14:27:01 [ERROR] Connection refused: postgres://db.internal:5432/auhdb\n...",
+  "investigation_result": "14:27:01 [ERROR] Connection refused: postgres://auhdb.internal:5432/authdb\n...",
   "available_commands": [
     "query_logs service=<name> timerange=<N>m",
     "check_metrics service=<name> metric=<type>",
@@ -111,7 +141,7 @@ Unknown command: 'foo bar'. Available commands:
   ],
   "time_elapsed_minutes": 7.5,
   "severity": "P2",
-  "services_affected": ["auth"],
+  "services_affected": ["auth", "api"],
   "step_number": 3
 }
 ```

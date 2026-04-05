@@ -12,6 +12,45 @@ Design Decisions:
 
 from dataclasses import dataclass, field
 from typing import Any
+import unicodedata
+
+
+_TEXT_PAYLOAD_TRANSLATIONS = str.maketrans({
+    "\u2013": "-",
+    "\u2014": "-",
+    "\u2018": "'",
+    "\u2019": "'",
+    "\u201c": '"',
+    "\u201d": '"',
+    "\u2026": "...",
+    "\u2190": "<-",
+    "\u2192": "->",
+    "\u2264": "<=",
+    "\u2265": ">=",
+    "\u2248": "approx",
+    "\u26a0": "[WARN]",
+    "\u274c": "[FAIL]",
+    "\u2705": "[OK]",
+    "\U0001F6A8": "[ALERT]",
+    "\ufe0f": "",
+})
+
+
+def ensure_ascii_text(text: str) -> str:
+    """
+    Normalise human-facing payloads to ASCII for Windows console safety.
+
+    The scenario content was authored with symbols such as emoji, arrows,
+    and typographic punctuation. Those render poorly in some local Windows
+    consoles, so the environment normalises outbound payloads before they
+    are surfaced to tests, the HTTP layer, or local debugging output.
+    """
+    if not text:
+        return text
+
+    translated = text.translate(_TEXT_PAYLOAD_TRANSLATIONS)
+    normalized = unicodedata.normalize("NFKD", translated)
+    return normalized.encode("ascii", "ignore").decode("ascii")
 
 
 @dataclass
@@ -36,6 +75,9 @@ class StepOutcome:
     incident_resolved: bool
     root_cause_identified: bool
     info: dict[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        self.investigation_result = ensure_ascii_text(self.investigation_result)
 
 
 
@@ -98,6 +140,10 @@ class PraxisObservation:
     severity: str
     services_affected: list[str]
     step_number: int
+
+    def __post_init__(self) -> None:
+        self.alert_summary = ensure_ascii_text(self.alert_summary)
+        self.investigation_result = ensure_ascii_text(self.investigation_result)
 
 
 @dataclass

@@ -26,7 +26,12 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from praxis_env.models import PraxisAction, PraxisObservation, PraxisState
+from praxis_env.models import (
+    PraxisAction,
+    PraxisObservation,
+    PraxisState,
+    ensure_ascii_text,
+)
 from praxis_env.scenarios import get_scenario, list_tasks
 from praxis_env.scenarios.base import BaseScenario, StepOutcome
 from server.command_parser import parse_command
@@ -80,7 +85,9 @@ class PraxisEnvironment:
 
         obs = self._scenario.get_observation()
         # Override investigation_result with scenario's initial text
-        obs.investigation_result = self._scenario.get_initial_observation_text()
+        obs.investigation_result = ensure_ascii_text(
+            self._scenario.get_initial_observation_text()
+        )
         return obs
 
     def step(self, action: PraxisAction) -> dict[str, Any]:
@@ -102,7 +109,9 @@ class PraxisEnvironment:
 
         logger.debug("step() → command=%r", action.command)
 
-        # Parse command string → structured ParsedCommand
+        # The environment owns step_count and cumulative reward bookkeeping.
+        # Scenarios return domain outcomes without mutating those counters.
+        # Parse command string -> structured ParsedCommand
         parsed = parse_command(action.command)
 
         # Delegate to active scenario

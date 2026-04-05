@@ -1,17 +1,30 @@
 # API Reference
 
-HTTP API specification for the Praxis environment server.
+HTTP API specification for the current Praxis environment server.
 
-**Base URL (local):** `http://localhost:7860`  
-**Base URL (HF Spaces):** `https://your-space.hf.space`
+**Base URL (local):** `http://localhost:7860`
 
-All request and response bodies are JSON. All endpoints return `Content-Type: application/json`.
+All request and response bodies are JSON.
+
+Current routes:
+
+- `POST /reset`
+- `POST /step`
+- `GET /state`
+- `GET /tasks`
+- `GET /health`
+
+Notes about the current contract:
+
+- `alert_summary` and `investigation_result` are ASCII-normalized text payloads.
+- `services_affected` is an array of service names with non-healthy status.
+- Per-step `reward` is signed and currently bounded to `[-1.0, 1.0]`.
 
 ---
 
 ## `POST /reset`
 
-Start a new episode. Resets all episode state cleanly.
+Start a new episode and clear all previous episode state.
 
 ### Request
 
@@ -21,28 +34,42 @@ Start a new episode. Resets all episode state cleanly.
 }
 ```
 
-| Field | Type | Default | Values |
+| Field | Type | Default | Current values |
 |---|---|---|---|
-| `task_name` | string | `"single-service-alert"` | `"single-service-alert"` · `"cascading-failure"` · `"ambiguous-incident"` |
+| `task_name` | string | `"single-service-alert"` | `"single-service-alert"` or `"cascading-failure"` |
 
 ### Response `200 OK`
 
-Returns the initial [PraxisObservation](./observation-space.md):
-
 ```json
 {
-  "alert_summary": "## 🚨 INCIDENT ALERT\n\n**Alert ID**: AUTH-001\n...",
-  "system_status": { "auth": "critical", "api": "healthy", "database": "healthy" },
+  "alert_summary": "## INCIDENT ALERT\n\n**Alert ID**: AUTH-001\n...",
+  "system_status": {
+    "auth": "critical",
+    "api": "degraded",
+    "payment": "healthy",
+    "database": "healthy"
+  },
   "investigation_result": "",
-  "available_commands": ["query_logs service=<name> timerange=<N>m", "..."],
+  "available_commands": [
+    "query_logs service=<name> timerange=<N>m",
+    "check_metrics service=<name> metric=<type>",
+    "check_deps service=<name>",
+    "check_config service=<name>",
+    "diagnose root_cause=<cause>",
+    "restart_service service=<name>",
+    "rollback_deploy service=<name>",
+    "scale_resource service=<name> resource=<type>",
+    "kill_query service=<name> query_id=<id>",
+    "escalate reason=<text>"
+  ],
   "time_elapsed_minutes": 0.0,
   "severity": "P2",
-  "services_affected": ["auth"],
+  "services_affected": ["auth", "api"],
   "step_number": 0
 }
 ```
 
-### Error Responses
+### Error responses
 
 | Status | When |
 |---|---|
@@ -55,7 +82,7 @@ Returns the initial [PraxisObservation](./observation-space.md):
 
 Execute one action in the current episode.
 
-**Must call `/reset` first.** Returns 400 if called before reset.
+You must call `/reset` first.
 
 ### Request
 
@@ -67,20 +94,36 @@ Execute one action in the current episode.
 
 | Field | Type | Description |
 |---|---|---|
-| `command` | string | Any [action command](./action-space.md) |
+| `command` | string | Any valid or invalid command string; invalid input returns a handled error payload |
 
 ### Response `200 OK`
 
 ```json
 {
   "observation": {
-    "alert_summary": "...",
-    "system_status": { "auth": "critical" },
-    "investigation_result": "14:27:01 [ERROR] Connection refused...",
-    "available_commands": ["..."],
+    "alert_summary": "## INCIDENT ALERT\n\n**Alert ID**: AUTH-001\n...",
+    "system_status": {
+      "auth": "critical",
+      "api": "degraded",
+      "payment": "healthy",
+      "database": "healthy"
+    },
+    "investigation_result": "14:27:01 [ERROR] Connection refused: postgres://auhdb.internal:5432/authdb\n...",
+    "available_commands": [
+      "query_logs service=<name> timerange=<N>m",
+      "check_metrics service=<name> metric=<type>",
+      "check_deps service=<name>",
+      "check_config service=<name>",
+      "diagnose root_cause=<cause>",
+      "restart_service service=<name>",
+      "rollback_deploy service=<name>",
+      "scale_resource service=<name> resource=<type>",
+      "kill_query service=<name> query_id=<id>",
+      "escalate reason=<text>"
+    ],
     "time_elapsed_minutes": 2.5,
     "severity": "P2",
-    "services_affected": ["auth"],
+    "services_affected": ["auth", "api"],
     "step_number": 1
   },
   "reward": 0.05,
@@ -91,12 +134,12 @@ Execute one action in the current episode.
 
 | Field | Type | Description |
 |---|---|---|
-| `observation` | object | New [PraxisObservation](./observation-space.md) |
-| `reward` | float | Per-step reward in `[0.0, 1.0]` |
-| `done` | boolean | `true` when episode has ended |
-| `info` | object | Optional debug info (empty in normal flow) |
+| `observation` | object | The new observation after the command |
+| `reward` | float | Signed per-step reward in `[-1.0, 1.0]` |
+| `done` | boolean | `true` when the episode has ended |
+| `info` | object | Optional debug metadata |
 
-### Error Responses
+### Error responses
 
 | Status | When |
 |---|---|
@@ -108,8 +151,6 @@ Execute one action in the current episode.
 ## `GET /state`
 
 Get current episode metadata without the full observation.
-
-**Must call `/reset` first.**
 
 ### Response `200 OK`
 
@@ -126,27 +167,26 @@ Get current episode metadata without the full observation.
 
 | Field | Type | Description |
 |---|---|---|
-| `episode_id` | string | Unique ID for this episode |
-| `step_count` | int | Steps taken so far |
-| `task_name` | string | Active scenario |
-| `incident_resolved` | boolean | Incident fully resolved |
-| `root_cause_identified` | boolean | Correct diagnosis issued |
-| `cumulative_reward` | float | Sum of rewards so far |
+| `episode_id` | string | Unique ID for the current episode |
+| `step_count` | integer | Number of completed steps |
+| `task_name` | string | Active scenario ID |
+| `incident_resolved` | boolean | Whether the incident has been resolved or escalated to completion |
+| `root_cause_identified` | boolean | Whether a correct diagnosis has been issued |
+| `cumulative_reward` | float | Sum of signed rewards so far |
 
 ---
 
 ## `GET /tasks`
 
-List all registered task names.
+List all currently registered task IDs.
 
 ### Response `200 OK`
 
 ```json
 {
   "tasks": [
-    "single-service-alert",
     "cascading-failure",
-    "ambiguous-incident"
+    "single-service-alert"
   ]
 }
 ```
@@ -155,7 +195,7 @@ List all registered task names.
 
 ## `GET /health`
 
-Health check endpoint. Used by the pre-submission validator.
+Basic health check used for local verification.
 
 ### Response `200 OK`
 
@@ -164,40 +204,30 @@ Health check endpoint. Used by the pre-submission validator.
   "status": "ok",
   "environment": "praxis-env",
   "version": "1.0.0",
-  "available_tasks": ["single-service-alert", "cascading-failure", "ambiguous-incident"]
+  "available_tasks": [
+    "cascading-failure",
+    "single-service-alert"
+  ]
 }
 ```
 
 ---
 
-## Episode Flow
+## Episode flow
 
+```text
+POST /reset {"task_name": "single-service-alert"}
+  -> observation step_number=0
+
+POST /step {"command": "query_logs service=auth timerange=5m"}
+  -> observation, reward=0.05, done=false
+
+POST /step {"command": "diagnose root_cause=bad_config"}
+  -> observation, reward=0.20, done=false
+
+POST /step {"command": "rollback_deploy service=auth"}
+  -> observation, reward=0.25, done=true
 ```
-POST /reset {"task_name": "..."} → initial observation
-   ↓
-POST /step  {"command": "query_logs ..."} → observation, reward=0.05, done=false
-POST /step  {"command": "check_metrics ..."} → observation, reward=0.05, done=false
-POST /step  {"command": "diagnose ..."} → observation, reward=0.20, done=false
-POST /step  {"command": "rollback_deploy ..."} → observation, reward=0.25, done=true
-   ↓
-POST /reset → new clean episode (or use a different task_name)
-```
 
-## Client Example
-
-```python
-import httpx
-
-async def run_episode(base_url: str, task: str, commands: list[str]):
-    async with httpx.AsyncClient(base_url=base_url) as client:
-        obs = (await client.post("/reset", json={"task_name": task})).json()
-        rewards = []
-
-        for cmd in commands:
-            resp = (await client.post("/step", json={"command": cmd})).json()
-            rewards.append(resp["reward"])
-            if resp["done"]:
-                break
-
-        return sum(rewards)
-```
+Planned later phases will add more tasks and submission artifacts, but the
+current HTTP surface is limited to the endpoints documented above.
