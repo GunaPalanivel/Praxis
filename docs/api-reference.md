@@ -34,8 +34,8 @@ Start a new episode and clear all previous episode state.
 }
 ```
 
-| Field | Type | Default | Current values |
-|---|---|---|---|
+| Field       | Type   | Default                  | Current values                                    |
+| ----------- | ------ | ------------------------ | ------------------------------------------------- |
 | `task_name` | string | `"single-service-alert"` | `"single-service-alert"` or `"cascading-failure"` |
 
 ### Response `200 OK`
@@ -71,10 +71,10 @@ Start a new episode and clear all previous episode state.
 
 ### Error responses
 
-| Status | When |
-|---|---|
-| `400` | Unknown `task_name` |
-| `500` | Internal server error |
+| Status | When                  |
+| ------ | --------------------- |
+| `400`  | Unknown `task_name`   |
+| `500`  | Internal server error |
 
 ---
 
@@ -92,8 +92,8 @@ You must call `/reset` first.
 }
 ```
 
-| Field | Type | Description |
-|---|---|---|
+| Field     | Type   | Description                                                                        |
+| --------- | ------ | ---------------------------------------------------------------------------------- |
 | `command` | string | Any valid or invalid command string; invalid input returns a handled error payload |
 
 ### Response `200 OK`
@@ -132,19 +132,19 @@ You must call `/reset` first.
 }
 ```
 
-| Field | Type | Description |
-|---|---|---|
-| `observation` | object | The new observation after the command |
-| `reward` | float | Signed per-step reward in `[-1.0, 1.0]` |
-| `done` | boolean | `true` when the episode has ended |
-| `info` | object | Optional debug metadata |
+| Field         | Type    | Description                             |
+| ------------- | ------- | --------------------------------------- |
+| `observation` | object  | The new observation after the command   |
+| `reward`      | float   | Signed per-step reward in `[-1.0, 1.0]` |
+| `done`        | boolean | `true` when the episode has ended       |
+| `info`        | object  | Optional debug metadata                 |
 
 ### Error responses
 
-| Status | When |
-|---|---|
-| `400` | Called before `/reset` |
-| `500` | Internal error |
+| Status | When                   |
+| ------ | ---------------------- |
+| `400`  | Called before `/reset` |
+| `500`  | Internal error         |
 
 ---
 
@@ -161,18 +161,18 @@ Get current episode metadata without the full observation.
   "task_name": "single-service-alert",
   "incident_resolved": false,
   "root_cause_identified": true,
-  "cumulative_reward": 0.30
+  "cumulative_reward": 0.3
 }
 ```
 
-| Field | Type | Description |
-|---|---|---|
-| `episode_id` | string | Unique ID for the current episode |
-| `step_count` | integer | Number of completed steps |
-| `task_name` | string | Active scenario ID |
-| `incident_resolved` | boolean | Whether the incident has been resolved or escalated to completion |
-| `root_cause_identified` | boolean | Whether a correct diagnosis has been issued |
-| `cumulative_reward` | float | Sum of signed rewards so far |
+| Field                   | Type    | Description                                                       |
+| ----------------------- | ------- | ----------------------------------------------------------------- |
+| `episode_id`            | string  | Unique ID for the current episode                                 |
+| `step_count`            | integer | Number of completed steps                                         |
+| `task_name`             | string  | Active scenario ID                                                |
+| `incident_resolved`     | boolean | Whether the incident has been resolved or escalated to completion |
+| `root_cause_identified` | boolean | Whether a correct diagnosis has been issued                       |
+| `cumulative_reward`     | float   | Sum of signed rewards so far                                      |
 
 ---
 
@@ -184,10 +184,7 @@ List all currently registered task IDs.
 
 ```json
 {
-  "tasks": [
-    "cascading-failure",
-    "single-service-alert"
-  ]
+  "tasks": ["ambiguous-incident", "cascading-failure", "single-service-alert"]
 }
 ```
 
@@ -205,6 +202,7 @@ Basic health check used for local verification.
   "environment": "praxis-env",
   "version": "1.0.0",
   "available_tasks": [
+    "ambiguous-incident",
     "cascading-failure",
     "single-service-alert"
   ]
@@ -231,3 +229,9 @@ POST /step {"command": "rollback_deploy service=auth"}
 
 Planned later phases will add more tasks and submission artifacts, but the
 current HTTP surface is limited to the endpoints documented above.
+
+The live `/reset` endpoint currently accepts these task names:
+
+- `single-service-alert`
+- `cascading-failure`
+- `ambiguous-incident`
