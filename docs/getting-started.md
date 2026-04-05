@@ -32,6 +32,17 @@ python -m uvicorn server.app:app --host 0.0.0.0 --port 7860
 
 ---
 
+## Run with Docker
+
+Build and run from the repository root:
+
+```bash
+docker build -t praxis-env:latest .
+docker run --rm -p 7860:7860 --name praxis-env praxis-env:latest
+```
+
+---
+
 ## Verify the server
 
 ```bash
@@ -129,8 +140,8 @@ This emits strict one-line records for each task:
 
 ## Current repo boundaries
 
-The current repository includes the baseline inference script and test suite.
-Docker packaging and deployment hardening remain later-phase deliverables.
+The current repository includes the baseline inference script, test suite, and
+root Dockerfile for deployment.
 
 ---
 

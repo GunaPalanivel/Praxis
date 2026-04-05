@@ -25,6 +25,7 @@ This repository currently implements:
 - ASCII-normalized observation text for stable local output
 - Centralized per-step reward engine in `server/reward.py`
 - Per-step rewards in `[0.0, 1.0]`
+- Containerized runtime via root `Dockerfile` (default port `7860`)
 
 ## Tasks
 
@@ -70,6 +71,29 @@ curl -X POST http://localhost:7860/step \
   -H "Content-Type: application/json" \
   -d '{"command":"query_logs service=auth timerange=5m"}'
 ```
+
+## Docker and Deployment
+
+Build the runtime image from the repository root:
+
+```bash
+docker build -t praxis-env:latest .
+```
+
+Run the container locally:
+
+```bash
+docker run --rm -p 7860:7860 --name praxis-env praxis-env:latest
+```
+
+Validate the containerized API:
+
+```bash
+curl http://localhost:7860/health
+curl http://localhost:7860/tasks
+```
+
+For Hugging Face Docker Spaces deployment details, see [docs/deployment.md](docs/deployment.md).
 
 ## Baseline Inference
 
@@ -148,6 +172,7 @@ Rewards are intentionally sparse but informative:
 
 - `praxis_env/` - public package, client, models, and scenarios
 - `server/` - FastAPI app, parser, and environment controller
+- `Dockerfile` - container build for local and HF Spaces deployment
 - `tests/` - import, parser, environment, and task validation tests
 - `docs/` - current development documentation
 - `idea/` - planning, research, and internal implementation notes

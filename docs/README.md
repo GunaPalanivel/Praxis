@@ -10,8 +10,7 @@ This documentation set describes the repository as it exists today:
 - Centralized per-step reward engine in `server/reward.py`
 - Per-step rewards in `[0.0, 1.0]`
 - Root-level baseline script `inference.py` with strict `[START]/[STEP]/[END]` output contract
-
-Planned later phases include Docker packaging and HF Space deployment hardening.
+- Root-level `Dockerfile` for containerized local runs and HF Spaces deployment
 
 ---
 
@@ -25,6 +24,7 @@ Planned later phases include Docker packaging and HF Space deployment hardening.
 | [Tasks](./tasks.md)                         | Current task catalog: 3 implemented tasks                  |
 | [API Reference](./api-reference.md)         | HTTP endpoint contracts for the current server             |
 | [Configuration](./configuration.md)         | Current runtime settings and planned submission variables  |
+| [Deployment](./deployment.md)               | Docker build/run flow and HF Spaces deployment checklist   |
 | [Contributing](./contributing.md)           | How to add scenarios, update docs, and extend tests        |
 
 ---
@@ -44,6 +44,7 @@ The current repo includes implementation through Phase 7:
 - Phase 5: `ambiguous-incident`
 - Phase 6: centralized reward engine and quality gates
 - Phase 7: baseline inference script and output-contract tests
+- Phase 8: Docker packaging and deployment guide
 
 If you need the live contract, use the code and passing tests as the source of
 truth, then use these docs as the synced explanation of that state.

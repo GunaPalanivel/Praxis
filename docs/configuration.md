@@ -6,9 +6,11 @@ Praxis currently has a small runtime configuration surface.
 
 ## Current server settings
 
-| Variable    | Default | Description                                 |
-| ----------- | ------- | ------------------------------------------- |
-| `LOG_LEVEL` | `INFO`  | Python logging level for the FastAPI server |
+| Variable    | Default   | Description                                 |
+| ----------- | --------- | ------------------------------------------- |
+| `HOST`      | `0.0.0.0` | Host interface used by `server.app:main`    |
+| `PORT`      | `7860`    | Server port used by `server.app:main`       |
+| `LOG_LEVEL` | `INFO`    | Python logging level for the FastAPI server |
 
 Example:
 
@@ -16,14 +18,37 @@ Example:
 LOG_LEVEL=DEBUG python -m uvicorn server.app:app --host 0.0.0.0 --port 7860
 ```
 
+When running through the project script entrypoint:
+
+```bash
+HOST=0.0.0.0 PORT=7860 LOG_LEVEL=INFO server
+```
+
 ---
 
 ## Current runtime conventions
 
 - The docs and examples assume the server is running on port `7860`.
-- Port selection currently comes from the `uvicorn` command you run locally.
+- Port selection comes from your `uvicorn` flags or the `PORT` env var used by
+  `server.app:main`.
 - Observation payloads are ASCII-normalized by the server; no environment
   variable is needed to enable that behavior.
+
+---
+
+## Container runtime defaults
+
+The root `Dockerfile` sets these defaults:
+
+- `HOST=0.0.0.0`
+- `PORT=7860`
+- `LOG_LEVEL=INFO`
+
+Override them at runtime if needed, for example:
+
+```bash
+docker run --rm -p 7860:7860 -e LOG_LEVEL=DEBUG praxis-env:latest
+```
 
 ---
 

@@ -227,8 +227,7 @@ POST /step {"command": "rollback_deploy service=auth"}
   -> observation, reward=0.25, done=true
 ```
 
-Planned later phases will add more tasks and submission artifacts, but the
-current HTTP surface is limited to the endpoints documented above.
+The current HTTP surface is limited to the endpoints documented above.
 
 The live `/reset` endpoint currently accepts these task names:
 
