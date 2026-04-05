@@ -9,11 +9,15 @@ description = "Production Incident Response Training Ground for AI Agents"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "openenv-core>=0.2.0",
     "fastapi>=0.110.0",
     "uvicorn[standard]>=0.29.0",
     "httpx>=0.27.0",
     "openai>=1.30.0",
 ]
+
+[project.scripts]
+server = "server.app:main"
 
 [project.optional-dependencies]
 dev = [

@@ -189,5 +189,27 @@ def _obs_to_response(obs) -> dict[str, Any]:
     }
 
 
+def main() -> None:
+    """Run the API server via uvicorn.
+
+    Exposed as the `server` project script so validators and local runners
+    can start the environment without custom commands.
+    """
+    import uvicorn
+
+    host = os.getenv("HOST", "0.0.0.0")
+    port = int(os.getenv("PORT", "7860"))
+    uvicorn.run(
+        "server.app:app",
+        host=host,
+        port=port,
+        log_level=LOG_LEVEL.lower(),
+    )
+
+
 # ── ASGI app (imported by uvicorn and Dockerfile CMD) ─────────────────────────
 app = create_app()
+
+
+if __name__ == "__main__":
+    main()

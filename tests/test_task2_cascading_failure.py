@@ -98,7 +98,7 @@ class TestResolutionRules:
     def test_escalate_without_enough_evidence_is_penalized(self):
         scenario = make_scenario()
         outcome = step_cmd(scenario, "escalate reason=need help")
-        assert outcome.reward == pytest.approx(-0.05)
+        assert outcome.reward == pytest.approx(0.0)
         assert outcome.done is True
         assert outcome.incident_resolved is False
 
@@ -107,25 +107,25 @@ class TestRedHerrings:
     def test_api_deployment_diagnosis_gets_wrong_diagnosis_penalty(self):
         scenario = make_scenario()
         outcome = step_cmd(scenario, "diagnose root_cause=api_deployment")
-        assert outcome.reward == pytest.approx(-0.10)
+        assert outcome.reward == pytest.approx(0.0)
         assert "deployment" in outcome.investigation_result.lower()
 
     def test_auth_memory_diagnosis_gets_wrong_diagnosis_penalty(self):
         scenario = make_scenario()
         outcome = step_cmd(scenario, "diagnose root_cause=auth_memory")
-        assert outcome.reward == pytest.approx(-0.10)
+        assert outcome.reward == pytest.approx(0.0)
         assert "memory" in outcome.investigation_result.lower()
 
     def test_restarting_auth_treats_symptom_not_root_cause(self):
         scenario = make_scenario()
         outcome = step_cmd(scenario, "restart_service service=auth")
-        assert outcome.reward == pytest.approx(-0.05)
+        assert outcome.reward == pytest.approx(0.0)
         assert outcome.incident_resolved is False
 
     def test_rolling_back_api_deploy_does_not_fix_incident(self):
         scenario = make_scenario()
         outcome = step_cmd(scenario, "rollback_deploy service=api")
-        assert outcome.reward == pytest.approx(-0.05)
+        assert outcome.reward == pytest.approx(0.0)
         assert outcome.incident_resolved is False
 
     def test_red_herring_path_scores_much_lower_than_optimal(self):
@@ -198,7 +198,7 @@ class TestRewardBounds:
     def test_reward_in_bounds(self, cmd):
         scenario = make_scenario()
         outcome = step_cmd(scenario, cmd)
-        assert -1.0 <= outcome.reward <= 1.0
+        assert 0.0 <= outcome.reward <= 1.0
 
     @pytest.mark.parametrize("cmd", REPRESENTATIVE_COMMANDS)
     def test_never_raises(self, cmd):

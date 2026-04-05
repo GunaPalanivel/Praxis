@@ -109,7 +109,7 @@ class BaseScenario(ABC):
         Implementation rules:
             - NEVER raise exceptions — return an error StepOutcome instead
             - NEVER use randomness — pure function over deterministic state
-            - ALWAYS clamp reward to [-1.0, 1.0] before returning
+                        - ALWAYS clamp reward to [0.0, 1.0] before returning
             - Do not mutate self._step_count or cumulative reward here;
               PraxisEnvironment applies that bookkeeping after the outcome
               is returned.
@@ -160,13 +160,13 @@ class BaseScenario(ABC):
 
     @staticmethod
     def clamp_reward(reward: float) -> float:
-        """Clamp reward to [-1.0, 1.0]. Negative values are valid penalty signals."""
-        return max(-1.0, min(1.0, reward))
+        """Clamp reward to [0.0, 1.0] for judging-contract compliance."""
+        return max(0.0, min(1.0, reward))
 
     def _handle_unknown_command(self, raw_command: str) -> StepOutcome:
         """
         Standard response for unrecognised commands.
-        Returns small penalty reward but does NOT crash.
+        Returns zero reward but does NOT crash.
         """
         available = "\n".join(f"  {cmd}" for cmd in AVAILABLE_COMMANDS)
         return StepOutcome(
@@ -174,7 +174,7 @@ class BaseScenario(ABC):
                 f"Unknown command: '{raw_command}'\n\n"
                 f"Available commands:\n{available}"
             ),
-            reward=self.clamp_reward(-0.01),
+            reward=self.clamp_reward(0.0),
             done=self.is_done(),
             incident_resolved=self._incident_resolved,
             root_cause_identified=self._root_cause_identified,

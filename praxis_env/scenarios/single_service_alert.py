@@ -27,9 +27,9 @@ Scoring (optimal path = ~0.78):
   - Check deps (auth → db):      +0.03
   - Correct diagnosis:           +0.20
   - Correct remediation:         +0.25
-  - Penalty — wrong diagnose:    -0.10
-  - Penalty — wrong remediation: -0.05
-  - Penalty — escalate without enough evidence: -0.05
+    - Wrong diagnose:              0.00 (no credit)
+    - Wrong remediation:           0.00 (no credit)
+    - Escalate without evidence:   0.00 (no credit)
   - Escalate with evidence: +0.15 (alternative ending)
 """
 
@@ -231,10 +231,10 @@ Recent config changes for database:
     REWARD_CORRECT_DIAGNOSIS = 0.20
     REWARD_CORRECT_REMEDIATION = 0.25
     REWARD_ESCALATE_WITH_EVIDENCE = 0.15
-    PENALTY_WRONG_DIAGNOSIS = -0.10
-    PENALTY_WRONG_REMEDIATION = -0.05
-    PENALTY_ESCALATE_NO_EVIDENCE = -0.05
-    PENALTY_UNKNOWN = -0.01
+    PENALTY_WRONG_DIAGNOSIS = 0.0
+    PENALTY_WRONG_REMEDIATION = 0.0
+    PENALTY_ESCALATE_NO_EVIDENCE = 0.0
+    PENALTY_UNKNOWN = 0.0
 
     # ── Accepted answers ───────────────────────────────────────────────────────
 

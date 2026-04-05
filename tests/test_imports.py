@@ -49,9 +49,10 @@ def test_import_server_environment():
 
 def test_import_server_app():
     """FastAPI app must be importable."""
-    from server.app import app, create_app
+    from server.app import app, create_app, main
     assert app is not None
     assert callable(create_app)
+    assert callable(main)
 
 
 def test_app_has_routes():

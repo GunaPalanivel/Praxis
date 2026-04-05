@@ -19,8 +19,8 @@ Agent must:
   4. Resolve it by restarting dns-resolver or escalating with evidence.
 
 Evidence rules:
-  - Diagnosis is only rewarded after at least 3 unique services have been
-    investigated and at least one infrastructure service has been checked.
+    - Diagnosis is only rewarded after at least 3 app services have been
+        investigated and at least one infrastructure service has been checked.
   - Escalation is only rewarded after the same evidence threshold.
   - Blind remediation is penalized to discourage guesswork.
 """
@@ -323,14 +323,15 @@ Recent config changes for cache:
     REWARD_CORRECT_DIAGNOSIS = 0.20
     REWARD_CORRECT_REMEDIATION = 0.15
     REWARD_ESCALATE_WITH_EVIDENCE = 0.15
-    PENALTY_WRONG_DIAGNOSIS = -0.10
-    PENALTY_WRONG_REMEDIATION = -0.05
-    PENALTY_ESCALATE_NO_EVIDENCE = -0.05
-    PENALTY_UNKNOWN = -0.01
+    PENALTY_WRONG_DIAGNOSIS = 0.0
+    PENALTY_WRONG_REMEDIATION = 0.0
+    PENALTY_ESCALATE_NO_EVIDENCE = 0.0
+    PENALTY_UNKNOWN = 0.0
 
     def _reset_scenario_state(self) -> None:
         self._done_investigations: set[str] = set()
         self._unique_services: set[str] = set()
+        self._app_services_seen: set[str] = set()
         self._infra_services_seen: set[str] = set()
 
     def get_initial_observation_text(self) -> str:
@@ -358,11 +359,13 @@ Recent config changes for cache:
         return self._handle_unknown_command(command.raw)
 
     def _has_sufficient_evidence(self) -> bool:
-        return len(self._unique_services) >= 3 and len(self._infra_services_seen) >= 1
+        return len(self._app_services_seen) >= 3 and len(self._infra_services_seen) >= 1
 
     def _remember_service(self, service: str) -> None:
         if service in self._LOGS or service in self._METRICS or service in self._DEPS or service in self._CONFIGS:
             self._unique_services.add(service)
+            if service in self.APP_SERVICES:
+                self._app_services_seen.add(service)
             if service in self.INFRA_SERVICES:
                 self._infra_services_seen.add(service)
 
@@ -523,7 +526,7 @@ Recent config changes for cache:
             return StepOutcome(
                 investigation_result=(
                     f"Incorrect timing: '{raw_cause}' may be plausible, but the evidence is not sufficient yet.\n\n"
-                    "Investigate at least three unique services and inspect the DNS layer before diagnosing."
+                    "Investigate at least three app services and inspect the DNS layer before diagnosing."
                 ),
                 reward=self.clamp_reward(self.PENALTY_WRONG_DIAGNOSIS),
                 done=self.is_done(),
@@ -618,7 +621,7 @@ Recent config changes for cache:
         if not self._has_sufficient_evidence():
             return StepOutcome(
                 investigation_result=(
-                    "Escalation filed without sufficient evidence. Gather at least three unique services and an\n"
+                    "Escalation filed without sufficient evidence. Gather at least three app services and an\n"
                     "infrastructure signal before escalating."
                 ),
                 reward=self.clamp_reward(self.PENALTY_ESCALATE_NO_EVIDENCE),
@@ -632,6 +635,7 @@ Recent config changes for cache:
         return StepOutcome(
             investigation_result=(
                 f"Escalation accepted with evidence.\n\nReason: {reason}\n"
+                f"App services investigated: {len(self._app_services_seen)}\n"
                 f"Unique services investigated: {len(self._unique_services)}\n"
                 f"Infrastructure services investigated: {len(self._infra_services_seen)}\n\n"
                 "On-call has enough context to act on the DNS issue."

@@ -17,8 +17,8 @@ Root cause: A runaway analytics pipeline launched a full-table scan
 
 Red herrings (by design — EGAR test):
   1. API deployment happened 30 minutes ago at 14:15 UTC — deployment
-     is healthy and has nothing to do with the incident. An agent that
-     blames this takes the -0.10 wrong-diagnosis penalty.
+    is healthy and has nothing to do with the incident. An agent that
+    blames this receives no diagnosis credit.
   2. Auth service memory at 78% — normal variation under load, not a
      contributing cause. Auth degradation is a symptom of DB pool exhaustion.
   3. Cache hit rate dropped — symptom of increased load as services retry,
@@ -37,10 +37,10 @@ Alternative valid ending (steps 5→6 skipped):
   escalate with ≥3 investigations → +0.15
 
 Red herring penalties:
-  - diagnose root_cause=api_deployment → -0.10
-  - diagnose root_cause=memory_pressure → -0.10
-  - restart_service service=auth → -0.05 (treating symptom)
-  - rollback_deploy service=api → -0.05 (wrong remediation, API was fine)
+    - diagnose root_cause=api_deployment → 0.00 (no credit)
+    - diagnose root_cause=memory_pressure → 0.00 (no credit)
+    - restart_service service=auth → 0.00 (symptom treatment)
+    - rollback_deploy service=api → 0.00 (wrong remediation)
 
 EGAR score target:
   - Naive agent that blames API deploy: ~0.10-0.15
@@ -370,10 +370,10 @@ Recent config changes for auth:
     REWARD_SCALE_POOL = 0.10      # Secondary fix — increases resilience
     REWARD_ESCALATE_WITH_EVIDENCE = 0.15
 
-    PENALTY_WRONG_DIAGNOSIS = -0.10
-    PENALTY_WRONG_REMEDIATION = -0.05
-    PENALTY_ESCALATE_NO_EVIDENCE = -0.05
-    PENALTY_UNKNOWN = -0.01
+    PENALTY_WRONG_DIAGNOSIS = 0.0
+    PENALTY_WRONG_REMEDIATION = 0.0
+    PENALTY_ESCALATE_NO_EVIDENCE = 0.0
+    PENALTY_UNKNOWN = 0.0
 
     # ── Accepted answers ───────────────────────────────────────────────────────
 

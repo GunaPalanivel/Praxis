@@ -170,7 +170,7 @@ class TestRewardBounds:
     def test_reward_in_bounds(self, cmd):
         s = make_scenario()
         outcome = step_cmd(s, cmd)
-        assert -1.0 <= outcome.reward <= 1.0, \
+        assert 0.0 <= outcome.reward <= 1.0, \
             f"Reward {outcome.reward} out of bounds for: {cmd!r}"
 
     @pytest.mark.parametrize("cmd", ALL_COMMANDS)
@@ -217,13 +217,13 @@ class TestEscalationLogic:
     def test_escalate_without_enough_evidence(self):
         s = make_scenario()
         outcome = step_cmd(s, "escalate reason=no idea")
-        assert outcome.reward < 0  # penalty
+        assert outcome.reward == pytest.approx(0.0)
         assert outcome.done is True
 
     def test_wrong_diagnosis_gives_negative_reward(self):
         s = make_scenario()
         outcome = step_cmd(s, "diagnose root_cause=network_partition")
-        assert outcome.reward < 0
+        assert outcome.reward == pytest.approx(0.0)
 
     def test_restart_does_not_resolve(self):
         s = make_scenario()
