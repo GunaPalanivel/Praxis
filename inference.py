@@ -81,6 +81,7 @@ SYSTEM_PROMPT = (
     "check_metrics service=<name> metric=<type>; "
     "check_deps service=<name>; "
     "check_config service=<name>; "
+    "check_runbook service=<name>; "
     "diagnose root_cause=<cause>; "
     "restart_service service=<name>; "
     "rollback_deploy service=<name>; "

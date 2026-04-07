@@ -29,6 +29,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
+from praxis_env.models import PraxisAction
 from server.praxis_environment import PraxisEnvironment
 
 # ── Logging ───────────────────────────────────────────────────────────────────
@@ -121,7 +122,7 @@ def create_app() -> FastAPI:
         """
         try:
             obs = env.reset(task_name=request.task_name)
-            return _obs_to_response(obs)
+            return PraxisEnvironment._obs_to_dict(obs)
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
         except Exception as e:
@@ -137,7 +138,6 @@ def create_app() -> FastAPI:
         Returns: {observation, reward, done, info}
         """
         try:
-            from praxis_env.models import PraxisAction
             action = PraxisAction(command=request.command)
             result = env.step(action)
             return result
@@ -173,20 +173,6 @@ def create_app() -> FastAPI:
         return {"tasks": env.list_tasks()}
 
     return app
-
-
-def _obs_to_response(obs) -> dict[str, Any]:
-    """Serialise a PraxisObservation to a JSON-safe dict."""
-    return {
-        "alert_summary": obs.alert_summary,
-        "system_status": obs.system_status,
-        "investigation_result": obs.investigation_result,
-        "available_commands": obs.available_commands,
-        "time_elapsed_minutes": obs.time_elapsed_minutes,
-        "severity": obs.severity,
-        "services_affected": obs.services_affected,
-        "step_number": obs.step_number,
-    }
 
 
 def main() -> None:

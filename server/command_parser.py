@@ -29,6 +29,7 @@ KNOWN_ACTIONS: frozenset[str] = frozenset({
     "check_metrics",
     "check_deps",
     "check_config",
+    "check_runbook",
     "diagnose",
     "restart_service",
     "rollback_deploy",
