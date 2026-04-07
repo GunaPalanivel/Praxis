@@ -110,8 +110,6 @@ Investigate the shared failure pattern and resolve the incident.\
 16:39:15 [INFO] Request succeeded to auth.internal after retry
 16:41:10 [ERROR] Failed to resolve search.internal: NXDOMAIN
 16:42:00 [WARN] Frontend saw intermittent DNS retry storms
-
-Note: The failures are intermittent and move between downstream services.
 """,
         "api": """\
 16:35:10 [WARN] Upstream auth lookup timed out
@@ -119,24 +117,18 @@ Note: The failures are intermittent and move between downstream services.
 16:36:00 [INFO] Request succeeded after retry
 16:37:20 [ERROR] Failed to resolve database.internal: NXDOMAIN
 16:39:00 [WARN] Latency spike appears intermittent, not constant
-
-Note: The deploy at 16:00 UTC is healthy; this is not a regression from the release.
 """,
         "auth": """\
 16:35:05 [ERROR] LDAP lookup timed out
 16:36:14 [INFO] Token validation succeeded after retry
 16:37:01 [ERROR] Failed to resolve database.internal: NXDOMAIN
 16:38:40 [WARN] Memory 82% - within normal operating range
-
-Note: Auth memory is elevated but not breached. It is a symptom of retries.
 """,
         "search": """\
 16:35:40 [WARN] Known slow query: JIRA-4521 (long-standing issue)
 16:36:05 [ERROR] Search backend lookup failed: NXDOMAIN
 16:37:55 [INFO] Query completed after retry
 16:39:20 [WARN] Intermittent slowdown persists
-
-Note: The known search bug is unrelated to the multi-service failure.
 """,
         "dns-resolver": """\
 16:30:00 [INFO] Maintenance window started
@@ -145,8 +137,6 @@ Note: The known search bug is unrelated to the multi-service failure.
 16:30:06 [WARN] Replica 3 returning NXDOMAIN for *.internal
 16:34:00 [WARN] NXDOMAIN rate rising across internal lookups
 16:45:00 [ERROR] Resolution failures reached 33%
-
-Note: The DNS layer is the actual root cause.
 """,
         "load-balancer": """\
 16:35:00 [INFO] Health checks pass
@@ -188,14 +178,12 @@ memory (auth)
   1h avg:   79%
   24h avg:  76%
   Threshold: 90%  - NOT IN BREACH
-  Note: Normal variation under retry pressure.
 """,
         ("search", "latency_p95"): """\
 latency_p95 (search)
   Current:  620ms
   1h avg:   180ms
   24h avg:  160ms
-  Note: Slow queries are a red herring, not the common failure mode.
 """,
         ("dns-resolver", "resolution_failures"): """\
 resolution_failures (dns-resolver)
@@ -203,21 +191,18 @@ resolution_failures (dns-resolver)
   1h avg:   1%
   24h avg:  0%
   Threshold: 5%  - BREACH
-  Note: Internal DNS lookups are failing intermittently after maintenance.
 """,
         ("load-balancer", "latency_p95"): """\
 latency_p95 (load-balancer)
   Current:  45ms
   1h avg:   31ms
   24h avg:  30ms
-  Note: Healthy - retries make the surrounding system look worse than it is.
 """,
         ("cache", "cache_hit_rate"): """\
 cache_hit_rate
   Current:  88%
   1h avg:   95%
   24h avg:  96%
-  Note: Cache misses rise because services retry DNS lookups.
 """,
     }
 
@@ -229,49 +214,35 @@ frontend dependencies:
   -> search       [https://search.internal]   degraded due to retries
   -> dns-resolver [resolver.internal]         failing intermittently
   -> cache        [redis://cache.internal]    healthy
-
-The repeated pattern across frontend, api, auth, and search suggests a shared infrastructure dependency.
 """,
         "api": """\
 api dependencies:
   -> auth         [https://auth.internal]     degraded due to retries
   -> database     [postgres://db.internal]    healthy
   -> dns-resolver [resolver.internal]         failing intermittently
-
-API is not the root cause; it is one of the consumers affected by DNS failures.
 """,
         "auth": """\
 auth dependencies:
   -> database     [postgres://db.internal]    healthy
   -> ldap         [ldap://ldap.internal]      healthy
   -> dns-resolver [resolver.internal]         failing intermittently
-
-Auth memory pressure is a symptom of retry storms, not the cause.
 """,
         "search": """\
 search dependencies:
   -> database     [postgres://db.internal]    healthy
   -> dns-resolver [resolver.internal]         failing intermittently
-
-Known search bugs exist, but they do not explain the cross-service NXDOMAIN pattern.
 """,
         "dns-resolver": """\
 dns-resolver dependencies: none
 Downstream consumers: frontend, api, auth, search, load-balancer
-
-This is the shared infrastructure layer that the affected services depend on.
 """,
         "load-balancer": """\
 load-balancer dependencies:
   -> dns-resolver [resolver.internal]         intermittent resolution failures
-
-The load balancer itself is healthy; it only reflects the failing DNS layer.
 """,
         "cache": """\
 cache dependencies: none
 Downstream consumers: frontend, api, auth, search
-
-Cache behavior is healthy; the miss spike is a symptom of retries.
 """,
     }
 
@@ -281,29 +252,21 @@ Recent config changes for api:
   16:00:00 UTC - Deploy v4.0.1 by ci-bot
     Changes: feature flag for dark mode rollout
     Health checks: green after deploy
-
-Note: The deploy is healthy and not the cause of the incident.
 """,
         "auth": """\
 Recent config changes for auth:
   No changes in the last 4 hours.
-
-Note: Memory at 82% is normal for the current retry pressure.
 """,
         "search": """\
 Recent config changes for search:
   Known issue: JIRA-4521 slow queries under load
   Last touched: 2 weeks ago
-
-Note: The search bug exists, but it does not explain the DNS failures.
 """,
         "dns-resolver": """\
 Recent config changes for dns-resolver:
   16:30:00 UTC - Maintenance started
   16:30:02 UTC - TTL changed: 300s -> 3s
   16:30:05 UTC - Replica 3 zone file sync failed
-
-Note: The DNS maintenance window introduced the misconfiguration.
 """,
         "load-balancer": """\
 Recent config changes for load-balancer:
@@ -324,6 +287,35 @@ Recent config changes for cache:
     def get_initial_observation_text(self) -> str:
         return ""
 
+    _RUNBOOKS = {
+        "frontend": """\
+RUNBOOK: frontend (SRE-DOC-060)
+
+Triage steps:
+  1. Check upstream dependency health
+  2. Check for NXDOMAIN or resolution failures in logs
+  3. If multiple upstreams show the same error, check shared infrastructure
+  4. Check recent deploys
+""",
+        "api": """\
+RUNBOOK: api (SRE-DOC-042)
+
+Triage steps:
+  1. Check upstream dependency health (auth, database)
+  2. Check recent deploys
+  3. If errors correlate with other services, check shared infrastructure
+""",
+        "dns-resolver": """\
+RUNBOOK: dns-resolver (SRE-DOC-010)
+
+Triage steps:
+  1. Check recent maintenance or config changes
+  2. Check zone file sync status across replicas
+  3. Check resolution failure rate (threshold: 5%)
+  4. If failures correlate with maintenance window, check TTL and replica health
+""",
+    }
+
     def step(self, command: ParsedCommand) -> StepOutcome:
         action = command.action_type
 
@@ -335,6 +327,8 @@ Recent config changes for cache:
             return self._handle_check_deps(command)
         if action == "check_config":
             return self._handle_check_config(command)
+        if action == "check_runbook":
+            return self._handle_check_runbook(command)
         if action == "diagnose":
             return self._handle_diagnose(command)
         if action == "restart_service":
@@ -491,6 +485,37 @@ Recent config changes for cache:
         else:
             event = "investigation.check_config.default"
         score = self._score_event(event, duplicate=duplicate)
+
+        return StepOutcome(
+            investigation_result=data,
+            reward=score.reward,
+            done=self.is_done(),
+            incident_resolved=self._incident_resolved,
+            root_cause_identified=self._root_cause_identified,
+        )
+
+    def _handle_check_runbook(self, command: ParsedCommand) -> StepOutcome:
+        """Handle the check_runbook command -- returns institutional knowledge."""
+        service = get_service_param(command.params, default="frontend")
+        data = self._RUNBOOKS.get(service)
+
+        if data is None:
+            score = self._score_event("invalid_input")
+            return StepOutcome(
+                investigation_result=f"No runbook available for service '{service}'.",
+                reward=score.reward,
+                done=self.is_done(),
+                incident_resolved=self._incident_resolved,
+                root_cause_identified=self._root_cause_identified,
+            )
+
+        key = f"runbook:{service}"
+        duplicate = key in self._done_investigations
+        if not duplicate:
+            self._done_investigations.add(key)
+            self._remember_service(service)
+
+        score = self._score_event("investigation.check_runbook.default", duplicate=duplicate)
 
         return StepOutcome(
             investigation_result=data,

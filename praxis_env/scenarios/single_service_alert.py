@@ -20,17 +20,16 @@ Red herrings:
   - API service is also showing slightly elevated latency due to auth failures
     (symptom, not cause)
 
-Scoring (optimal path = ~0.78):
-  - First log query on auth:     +0.05
+Scoring (optimal path = ~0.71):
+  - First log query on auth:     +0.08
   - Check config (reveals typo): +0.10
-  - Check metrics (error_rate):  +0.05
-  - Check deps (auth → db):      +0.03
   - Correct diagnosis:           +0.20
   - Correct remediation:         +0.25
     - Wrong diagnose:              0.00 (no credit)
     - Wrong remediation:           0.00 (no credit)
     - Escalate without evidence:   0.00 (no credit)
   - Escalate with evidence: +0.15 (alternative ending)
+  - check_runbook:                +0.05 (institutional knowledge)
 """
 
 from __future__ import annotations
@@ -53,10 +52,10 @@ class SingleServiceAlertScenario(BaseScenario):
     MAX_STEPS = 15
 
     ALERT_SUMMARY = """\
-## 🚨 INCIDENT ALERT
+## INCIDENT ALERT
 
 **Alert ID**: AUTH-001
-**Severity**: P2 — Partial degradation (some users affected)
+**Severity**: P2 -- Partial degradation (some users affected)
 **Triggered**: 14:27 UTC
 **Duration**: ~3 minutes and rising
 
@@ -66,10 +65,10 @@ class SingleServiceAlertScenario(BaseScenario):
 - Impact: Approximately 15% of active users unable to authenticate
 
 **Initial signals**:
-- Auth service: ❌ critical
-- API gateway: ⚠️ degraded (elevated 5xx responses)
-- Payment service: ✅ healthy
-- Database: ✅ healthy
+- Auth service: critical
+- API gateway: degraded (elevated 5xx responses)
+- Payment service: healthy
+- Database: healthy
 
 Use the available commands to investigate and resolve the incident.\
 """
@@ -101,8 +100,6 @@ Use the available commands to investigate and resolve the incident.\
 14:27:45 [ERROR] Connection refused: postgres://auhdb.internal:5432/authdb
 14:28:00 [ERROR] Connection refused: postgres://auhdb.internal:5432/authdb
 14:28:15 [WARN]  Auth service response time: 2340ms (threshold: 500ms)
-
-Note: Connection string endpoint → postgres://auhdb.internal (not authdb.internal)
 """,
         # API gateway logs — symptom, not cause
         "api": """\
@@ -121,7 +118,6 @@ Note: Connection string endpoint → postgres://auhdb.internal (not authdb.inter
 14:27:00 [INFO]  Database: 23 active connections (pool: 100)
 14:27:30 [INFO]  No new connections from auth service since 14:26:58
 14:28:00 [INFO]  Database operating normally. No errors.
-Note: auth service has NOT connected since 14:26:58
 """,
     }
 
@@ -129,40 +125,38 @@ Note: auth service has NOT connected since 14:26:58
         ("auth", "error_rate"): """\
 error_rate
   Current (1m):  15.2%
-  1h average:     8.1%  ← rose from normal at ~14:26
+  1h average:     8.1%
   24h average:    0.12%
-  Threshold:      5.0%  🔴 BREACH
+  Threshold:      5.0%  BREACH
 """,
         ("auth", "latency_p95"): """\
 latency_p95
   Current:  2340ms
   1h avg:    890ms
   24h avg:   145ms
-  SLO:       500ms  🔴 BREACH
+  SLO:       500ms  BREACH
 """,
         ("auth", "connections"): """\
 connections
   DB connections current: 0
   DB connections 1h ago:  18
-  Note: Zero DB connections since 14:26:58 — connection attempts failing.
 """,
         ("api", "error_rate"): """\
 error_rate (api-gateway)
   Current:  12.4%
   1h avg:    4.8%
   24h avg:   0.09%
-  Note: Errors correlate exactly with auth service degradation start time.
 """,
         ("api", "latency_p95"): """\
 latency_p95 (api-gateway)
-  Current:  1820ms  ← inflated by auth timeouts
+  Current:  1820ms
   1h avg:    312ms
   24h avg:   198ms
 """,
         ("database", "connections"): """\
 connections (database)
   Total active: 23
-  From auth:     0  ← auth not connecting
+  From auth:     0
   From api:      4
   From payment:  8
   Max pool:    100 (utilisation: 23%)
@@ -171,24 +165,21 @@ connections (database)
 error_rate (database)
   Current: 0.0%
   1h avg:  0.0%
-  Note: Database itself is completely healthy.
 """,
     }
 
     _DEPS = {
         "auth": """\
 auth service dependencies:
-  → database  [postgres://auhdb.internal:5432/authdb]  ⚠️  FAILING — host unreachable
-  → redis     [redis://cache.internal:6379]             ✅  healthy
-  → config    [vault://config.internal/auth]            ✅  healthy
-
-Note: Connection string shows 'auhdb.internal' — expected 'authdb.internal'
+  -> database  [postgres://auhdb.internal:5432/authdb]  FAILING -- host unreachable
+  -> redis     [redis://cache.internal:6379]             healthy
+  -> config    [vault://config.internal/auth]            healthy
 """,
         "api": """\
 api-gateway dependencies:
-  → auth     [http://auth.internal:8080]   ❌  UNHEALTHY (circuit breaker open)
-  → payment  [http://pay.internal:8080]    ✅  healthy
-  → database [not a direct dependency]
+  -> auth     [http://auth.internal:8080]   UNHEALTHY (circuit breaker open)
+  -> payment  [http://pay.internal:8080]    healthy
+  -> database [not a direct dependency]
 """,
         "database": """\
 database has no upstream service dependencies.
@@ -205,10 +196,9 @@ Recent config changes for auth service:
     - Before: postgres://authdb.internal:5432/authdb
     + After:  postgres://auhdb.internal:5432/authdb   ← TYPO in hostname
 
-  13:45:00 UTC — Config: LOG_LEVEL changed INFO → DEBUG (no impact)
-  12:00:00 UTC — Routine secret rotation (no impact)
+  13:45:00 UTC -- Config: LOG_LEVEL changed INFO -> DEBUG (no impact)
+  12:00:00 UTC -- Routine secret rotation (no impact)
 
-Note: The deploy at 14:23 introduced a typo in the database hostname.
 Last known-good version: v2.4.0
 """,
         "api": """\
@@ -239,6 +229,34 @@ Recent config changes for database:
 
     # ── Step dispatch ─────────────────────────────────────────────────────────
 
+    # ── Runbook data (institutional knowledge) ────────────────────────────
+
+    _RUNBOOKS = {
+        "auth": """\
+RUNBOOK: auth (SRE-DOC-028)
+
+Triage steps:
+  1. Check recent deploys or config changes
+  2. Check database connectivity (auth depends on DB for sessions)
+  3. Check error rate and response times
+  4. If DB-related, verify connection string and credentials
+
+Common failure modes:
+  - Bad deploy: errors start shortly after a release
+  - Database connectivity: connection string misconfiguration
+  - Memory pressure: GC pauses cause timeouts (only above 90%)
+""",
+        "api": """\
+RUNBOOK: api-gateway (SRE-DOC-042)
+
+Triage steps:
+  1. Check upstream dependency health (auth, payment)
+  2. If auth is unhealthy, follow auth runbook
+  3. Check recent deploys
+  4. Check rate limiting configuration
+""",
+    }
+
     def step(self, command: ParsedCommand) -> StepOutcome:
         action = command.action_type
 
@@ -250,6 +268,8 @@ Recent config changes for database:
             return self._handle_check_deps(command)
         elif action == "check_config":
             return self._handle_check_config(command)
+        elif action == "check_runbook":
+            return self._handle_check_runbook(command)
         elif action == "diagnose":
             return self._handle_diagnose(command)
         elif action in ("restart_service", "rollback_deploy", "scale_resource", "kill_query"):
@@ -371,6 +391,36 @@ Recent config changes for database:
             else "investigation.check_config.default"
         )
         score = self._score_event(event, duplicate=duplicate)
+
+        return StepOutcome(
+            investigation_result=data,
+            reward=score.reward,
+            done=self.is_done(),
+            incident_resolved=self._incident_resolved,
+            root_cause_identified=self._root_cause_identified,
+        )
+
+    def _handle_check_runbook(self, command: ParsedCommand) -> StepOutcome:
+        """Handle the check_runbook command -- returns institutional knowledge."""
+        service = get_service_param(command.params, default="auth")
+        data = self._RUNBOOKS.get(service)
+
+        if data is None:
+            score = self._score_event("invalid_input")
+            return StepOutcome(
+                investigation_result=f"No runbook available for service '{service}'.",
+                reward=score.reward,
+                done=self.is_done(),
+                incident_resolved=self._incident_resolved,
+                root_cause_identified=self._root_cause_identified,
+            )
+
+        key = f"runbook:{service}"
+        duplicate = key in self._done_investigations
+        if not duplicate:
+            self._done_investigations.add(key)
+
+        score = self._score_event("investigation.check_runbook.default", duplicate=duplicate)
 
         return StepOutcome(
             investigation_result=data,
