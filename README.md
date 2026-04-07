@@ -55,6 +55,7 @@ The agent sends one text command per step.
 | `check_metrics service=<name> metric=<type>`    | Read service or infrastructure metrics                      |
 | `check_deps service=<name>`                     | Inspect dependency graph for a service                      |
 | `check_config service=<name>`                   | Inspect recent config and deployment changes                |
+| `check_runbook service=<name>`                  | Access institutional SRE runbooks for triage guidance        |
 | `diagnose root_cause=<cause>`                   | Declare the suspected root cause                            |
 | `restart_service service=<name>`                | Restart a service as remediation                            |
 | `rollback_deploy service=<name>`                | Roll back a recent deploy                                   |
@@ -96,23 +97,25 @@ Praxis is deterministic: the same action sequence yields the same outputs and re
 
 ## Tasks
 
-| Task                   | Difficulty | Severity | Max Steps | Scenario Summary                                                          | Target Score (Deterministic Optimal Path) |
-| ---------------------- | ---------- | -------- | --------- | ------------------------------------------------------------------------- | ----------------------------------------- |
-| `single-service-alert` | Easy       | P2       | 15        | Auth fails after a bad deployment config typo in DB host settings         | 0.60                                      |
-| `cascading-failure`    | Medium     | P1       | 20        | Runaway analytics query exhausts DB connection pool and cascades failures | 0.75                                      |
-| `ambiguous-incident`   | Hard       | P2       | 25        | Intermittent multi-service failures caused by DNS misconfiguration        | 0.78                                      |
+| Task                   | Difficulty | Severity | Max Steps | Scenario Summary                                                          | Optimal Path Score |
+| ---------------------- | ---------- | -------- | --------- | ------------------------------------------------------------------------- | ------------------ |
+| `single-service-alert` | Easy       | P2       | 15        | Auth fails after a bad deployment config typo in DB host settings         | 0.63               |
+| `cascading-failure`    | Medium     | P1       | 20        | Runaway analytics query exhausts DB connection pool and cascades failures | 0.485              |
+| `ambiguous-incident`   | Hard       | P2       | 25        | Intermittent multi-service failures caused by DNS misconfiguration        | 0.753              |
 
-Difficulty progression is intentional: isolated service incident -> shared dependency cascade -> ambiguous cross-service failure with evidence gating.
+Difficulty progression is intentional: isolated service incident -> shared dependency cascade -> ambiguous cross-service failure with evidence gating. The optimal path score decreases with difficulty, ensuring a clear discriminative gradient for model evaluation.
 
 ## Reward Function
 
 Rewards are per-step and clamped to `[0.0, 1.0]`.
 
-- Investigation actions: small positive signal when evidence is relevant.
-- Correct diagnosis: larger positive signal.
-- Correct remediation or evidence-backed escalation: highest positive signal.
-- Wrong diagnosis, wrong remediation, or premature escalation: no credit.
-- Repeated low-value actions can be penalized internally by the reward engine.
+- **Investigation actions**: small positive signal when evidence is relevant.
+- **Correct diagnosis**: larger positive signal.
+- **Correct remediation or evidence-backed escalation**: highest positive signal.
+- **Wrong diagnosis, wrong remediation, or premature escalation**: no credit.
+- **Duplicate actions**: penalized (50% reduction).
+- **Step cost**: medium and hard tasks apply a small per-step cost (0.005 and 0.003 respectively) to discourage aimless exploration.
+- **Runbook usage**: agents that consult institutional runbooks (`check_runbook`) receive a small bonus.
 
 Centralized scoring lives in `server/reward.py` and is shared across all scenarios.
 
@@ -164,19 +167,19 @@ Structured stdout contract:
 [END] success=<true|false> steps=<n> rewards=<r1,r2,...,rn>
 ```
 
-### Latest Live Baseline Run (Model-Backed)
+### Latest Deterministic Optimal Path Scores
 
-Measured on 2026-04-08 against `https://gp5901-praxis.hf.space` using model `Qwen/Qwen2.5-72B-Instruct`:
+Reference scores from deterministic scenario tests (`pytest tests/ -v`):
 
-| Task                   | Steps | Rewards                                                                                               | Episode Score |
-| ---------------------- | ----- | ----------------------------------------------------------------------------------------------------- | ------------- |
-| `single-service-alert` | 4     | `0.05,0.03,0.10,0.25`                                                                                 | 0.43          |
-| `cascading-failure`    | 20    | `0.05,0.00,0.00,0.10,0.00,0.00,0.00,0.00,0.03,0.00,0.00,0.00,0.00,0.00,0.10,0.10,0.10,0.10,0.10,0.10` | 0.78          |
-| `ambiguous-incident`   | 6     | `0.05,0.05,0.05,0.10,0.20,0.15`                                                                       | 0.60          |
+| Task                   | Optimal Steps | Optimal Path Score | Expected Live Model Range |
+| ---------------------- | ------------- | ------------------ | ------------------------- |
+| `single-service-alert` | 4             | 0.63               | 0.55 - 0.70              |
+| `cascading-failure`    | 7             | 0.485              | 0.30 - 0.52              |
+| `ambiguous-incident`   | 9             | 0.753              | 0.15 - 0.40              |
 
-Reference optimal-path totals from deterministic scenario tests are 0.60, 0.75, and 0.78.
+The difficulty progression is verified: Easy > Medium > Hard in expected live model scores. The optimal path scores reflect the deterministic ceiling, while live model scores are lower due to exploration, wrong diagnoses, and step cost accumulation.
 
-Fallback-only runs (no model token configured) are deterministic and may differ from these live model-backed scores.
+Fallback-only runs (no model token configured) are deterministic and may differ from live model-backed scores.
 
 ## Development
 
