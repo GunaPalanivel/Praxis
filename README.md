@@ -6,7 +6,7 @@ colorTo: green
 sdk: docker
 app_port: 7860
 tags:
-    - openenv
+  - openenv
 pinned: false
 ---
 
@@ -164,17 +164,19 @@ Structured stdout contract:
 [END] success=<true|false> steps=<n> rewards=<r1,r2,...,rn>
 ```
 
-### Latest Local Baseline Run (Fallback Mode)
+### Latest Live Baseline Run (Model-Backed)
 
-Measured on 2026-04-05 with no API token set (deterministic fallback command policy in `inference.py`):
+Measured on 2026-04-08 against `https://gp5901-praxis.hf.space` using model `Qwen/Qwen2.5-72B-Instruct`:
 
-| Task                   | Steps | Rewards                              | Episode Score |
-| ---------------------- | ----- | ------------------------------------ | ------------- |
-| `single-service-alert` | 4     | `0.05,0.10,0.20,0.25`                | 0.60          |
-| `cascading-failure`    | 7     | `0.05,0.05,0.10,0.10,0.20,0.15,0.10` | 0.75          |
-| `ambiguous-incident`   | 6     | `0.05,0.05,0.05,0.10,0.20,0.15`      | 0.60          |
+| Task                   | Steps | Rewards                                                                                               | Episode Score |
+| ---------------------- | ----- | ----------------------------------------------------------------------------------------------------- | ------------- |
+| `single-service-alert` | 4     | `0.05,0.03,0.10,0.25`                                                                                 | 0.43          |
+| `cascading-failure`    | 20    | `0.05,0.00,0.00,0.10,0.00,0.00,0.00,0.00,0.03,0.00,0.00,0.00,0.00,0.00,0.10,0.10,0.10,0.10,0.10,0.10` | 0.78          |
+| `ambiguous-incident`   | 6     | `0.05,0.05,0.05,0.10,0.20,0.15`                                                                       | 0.60          |
 
 Reference optimal-path totals from deterministic scenario tests are 0.60, 0.75, and 0.78.
+
+Fallback-only runs (no model token configured) are deterministic and may differ from these live model-backed scores.
 
 ## Development
 
