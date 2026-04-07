@@ -6,6 +6,19 @@ semantic reward events (investigation, diagnosis, remediation, escalation)
 instead of carrying duplicated numeric constants.
 
 All returned rewards are clamped to [0.0, 1.0].
+
+Calibration rationale (updated for difficulty-curve fix):
+  - Easy (single-service-alert):
+      Target optimal: ~0.70.  Investigation rewards are generous so even
+      a 4-step agent scores well.  This is the "on-ramp" task.
+  - Medium (cascading-failure):
+      Target optimal: ~0.52.  Investigation rewards are modest, requiring
+      multi-hop reasoning across services.  Red herrings waste steps.
+      Step cost adds mild pressure to stay focused.
+  - Hard (ambiguous-incident):
+      Target optimal: ~0.78 deterministic path, but a live model must
+      investigate 5+ services and distinguish infrastructure from app
+      failures.  Evidence gating prevents lucky guesses.
 """
 
 from __future__ import annotations
@@ -71,52 +84,100 @@ class RewardPolicy:
     time_pressure_cost_per_step: float = 0.0
 
 
+# ── Reward Calibration ──────────────────────────────────────────────────────
+#
+# Each value is chosen to produce a target difficulty curve:
+#   easy  >  medium  >  hard   (when scored by a frontier model)
+#
+# Key design decisions:
+#   - Investigation rewards scale with diagnostic value: checking the
+#     service closest to the root cause gives more signal.
+#   - Diagnosis is worth 0.15-0.20 depending on difficulty — enough to
+#     matter but not so much that a lucky guess dominates.
+#   - Remediation is the largest single reward to incentivize taking
+#     correct action, not just identifying the problem.
+#   - check_runbook rewards institutional-knowledge usage (real on-call
+#     engineers consult runbooks before guessing).
+#   - Step cost is 0 for easy (no pressure), mild for medium/hard
+#     (discourages aimless exploration).
+# ────────────────────────────────────────────────────────────────────────────
+
 DEFAULT_REWARD_POLICIES: dict[str, RewardPolicy] = {
+    # ── EASY: single-service-alert ──────────────────────────────────────
+    # Target optimal path: ~0.70 in 4 steps.
+    # Generous investigation rewards so partial investigation is well-rewarded.
+    # No step cost — the easy task is forgiving by design.
     "single-service-alert": RewardPolicy(
         event_values={
-            "investigation.query_logs.auth": 0.05,
-            "investigation.query_logs.default": 0.03,
-            "investigation.check_metrics.connections": 0.05,
+            # Investigation — generous for the easy task
+            "investigation.query_logs.auth": 0.08,        # key service
+            "investigation.query_logs.default": 0.05,      # exploring is okay
+            "investigation.check_metrics.connections": 0.08,
             "investigation.check_metrics.default": 0.05,
-            "investigation.check_deps.default": 0.03,
-            "investigation.check_config.auth": 0.10,
-            "investigation.check_config.default": 0.02,
+            "investigation.check_deps.default": 0.05,
+            "investigation.check_config.auth": 0.10,       # high-value: reveals the config typo
+            "investigation.check_config.default": 0.03,
+            "investigation.check_runbook.default": 0.05,   # consulting runbook is rewarded
+            # Diagnosis
             "diagnosis.correct": 0.20,
             "diagnosis.wrong": 0.0,
-            "remediation.rollback_deploy.auth": 0.25,
+            # Remediation
+            "remediation.rollback_deploy.auth": 0.25,      # correct fix = highest single reward
             "remediation.wrong": 0.0,
+            # Escalation
             "escalation.with_evidence": 0.15,
             "escalation.no_evidence": 0.0,
+            # Error handling
             "unknown_command": 0.0,
             "invalid_input": 0.0,
         },
+        # Easy task: no step cost, mild penalties
+        time_pressure_cost_per_step=0.0,
     ),
+    # ── MEDIUM: cascading-failure ───────────────────────────────────────
+    # Target optimal path: ~0.52 in 7 steps.
+    # Investigation rewards are lower — must follow the dependency chain.
+    # Step cost penalizes aimless wandering through red herrings.
     "cascading-failure": RewardPolicy(
         event_values={
-            "investigation.query_logs.api": 0.05,
-            "investigation.query_logs.database": 0.10,
-            "investigation.query_logs.analytics": 0.05,
-            "investigation.query_logs.default": 0.03,
-            "investigation.check_metrics.database.connections": 0.10,
-            "investigation.check_metrics.default": 0.03,
-            "investigation.check_deps.core": 0.05,
-            "investigation.check_deps.default": 0.03,
+            # Investigation — lower rewards, must multi-hop to find root cause
+            "investigation.query_logs.api": 0.03,          # symptom service, low value
+            "investigation.query_logs.database": 0.05,     # closer to root cause
+            "investigation.query_logs.analytics": 0.05,    # reveals the runaway query
+            "investigation.query_logs.default": 0.02,      # exploring other services
+            "investigation.check_metrics.database.connections": 0.08,  # key metric
+            "investigation.check_metrics.default": 0.02,
+            "investigation.check_deps.core": 0.03,         # reveals db dependency
+            "investigation.check_deps.default": 0.02,
             "investigation.check_config.database": 0.03,
             "investigation.check_config.analytics": 0.03,
-            "investigation.check_config.default": 0.01,
-            "diagnosis.correct": 0.20,
+            "investigation.check_config.default": 0.02,
+            "investigation.check_runbook.default": 0.03,
+            # Diagnosis — moderate, must earn it through investigation
+            "diagnosis.correct": 0.15,
             "diagnosis.wrong": 0.0,
-            "remediation.kill_query.database": 0.15,
-            "remediation.scale_resource.database.connection_pool": 0.10,
+            # Remediation — both needed for full resolution
+            "remediation.kill_query.database": 0.10,       # stop the bleeding
+            "remediation.scale_resource.database.connection_pool": 0.08,  # prevent recurrence
             "remediation.wrong": 0.0,
-            "escalation.with_evidence": 0.15,
+            # Escalation
+            "escalation.with_evidence": 0.10,
             "escalation.no_evidence": 0.0,
+            # Error handling
             "unknown_command": 0.0,
             "invalid_input": 0.0,
         },
+        # Medium task: mild step cost discourages aimless exploration
+        time_pressure_cost_per_step=0.005,
     ),
+    # ── HARD: ambiguous-incident ────────────────────────────────────────
+    # Target optimal path: ~0.78 deterministic, but requires 9 steps of
+    # careful multi-service investigation.  A live model that gets
+    # distracted by red herrings (deploy, memory, search bug) will score
+    # much lower.  Evidence gating prevents blind diagnosis.
     "ambiguous-incident": RewardPolicy(
         event_values={
+            # Investigation — must check 3+ app services + infra
             "investigation.query_logs.app": 0.05,
             "investigation.query_logs.dns-resolver": 0.10,
             "investigation.query_logs.default": 0.03,
@@ -128,15 +189,22 @@ DEFAULT_REWARD_POLICIES: dict[str, RewardPolicy] = {
             "investigation.check_config.dns-resolver": 0.05,
             "investigation.check_config.app": 0.02,
             "investigation.check_config.default": 0.01,
+            "investigation.check_runbook.default": 0.03,
+            # Diagnosis
             "diagnosis.correct": 0.20,
             "diagnosis.wrong": 0.0,
+            # Remediation
             "remediation.restart_service.dns-resolver": 0.15,
             "remediation.wrong": 0.0,
+            # Escalation
             "escalation.with_evidence": 0.15,
             "escalation.no_evidence": 0.0,
+            # Error handling
             "unknown_command": 0.0,
             "invalid_input": 0.0,
         },
+        # Hard task: mild step cost
+        time_pressure_cost_per_step=0.003,
     ),
 }
 
@@ -204,6 +272,7 @@ class RewardEngine:
         premature_penalty = policy.premature_penalty if premature else 0.0
         destructive_penalty = policy.destructive_penalty if destructive else 0.0
 
+        # Step cost: mild per-step penalty that discourages aimless exploration
         time_pressure_cost = (
             -policy.time_pressure_cost_per_step
             if policy.time_pressure_cost_per_step > 0.0
