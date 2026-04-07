@@ -1,3 +1,15 @@
+---
+title: Praxis
+emoji: 🔥
+colorFrom: blue
+colorTo: green
+sdk: docker
+app_port: 7860
+tags:
+    - openenv
+pinned: false
+---
+
 # Praxis: Production Incident Response Training for AI Agents
 
 Praxis is an OpenEnv-compatible environment that trains and evaluates agents on real-world SRE incident response.
