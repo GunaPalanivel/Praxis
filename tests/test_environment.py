@@ -134,6 +134,7 @@ class TestScenarioObservationContracts:
             "auth",
             "payment",
             "database",
+            "notification",
             "cache",
         ]
         assert "cascading-failure" in env.list_tasks()

@@ -35,7 +35,7 @@ class TestOptimalPath:
         "kill_query service=database query_id=runaway_analytics",
         "scale_resource service=database resource=connection_pool",
     ]
-    EXPECTED_REWARDS = [0.05, 0.05, 0.10, 0.10, 0.20, 0.15, 0.10]
+    EXPECTED_REWARDS = [0.025, 0.025, 0.075, 0.045, 0.145, 0.095, 0.075]
 
     def test_optimal_path_rewards(self):
         scenario = make_scenario()
@@ -46,7 +46,7 @@ class TestOptimalPath:
     def test_optimal_path_total_score(self):
         scenario = make_scenario()
         total = sum(step_cmd(scenario, cmd).reward for cmd in self.OPTIMAL_COMMANDS)
-        assert total == pytest.approx(0.75, abs=1e-6)
+        assert total == pytest.approx(0.485, abs=1e-6)
 
     def test_optimal_path_done_only_after_second_remediation(self):
         scenario = make_scenario()
@@ -68,7 +68,7 @@ class TestResolutionRules:
             scenario,
             "kill_query service=database query_id=runaway_analytics",
         )
-        assert outcome.reward == pytest.approx(0.15)
+        assert outcome.reward == pytest.approx(0.095)
         assert outcome.done is False
         assert outcome.incident_resolved is False
 
@@ -78,7 +78,7 @@ class TestResolutionRules:
             scenario,
             "scale_resource service=database resource=connection_pool",
         )
-        assert outcome.reward == pytest.approx(0.10)
+        assert outcome.reward == pytest.approx(0.075)
         assert outcome.done is False
         assert outcome.incident_resolved is False
 
@@ -91,7 +91,7 @@ class TestResolutionRules:
             scenario,
             "escalate reason=db pool exhausted by analytics query",
         )
-        assert outcome.reward == pytest.approx(0.15)
+        assert outcome.reward == pytest.approx(0.095)
         assert outcome.done is True
         assert outcome.incident_resolved is True
 
@@ -137,8 +137,8 @@ class TestRedHerrings:
             "rollback_deploy service=api",
         ]
         wrong_total = sum(step_cmd(scenario, cmd).reward for cmd in wrong_path)
-        assert wrong_total < 0.20
-        assert 0.75 - wrong_total >= 0.30
+        assert wrong_total < 0.10
+        assert 0.485 - wrong_total >= 0.30
 
 
 class TestDeterminism:

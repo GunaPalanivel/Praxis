@@ -31,11 +31,11 @@ def step_cmd(scenario: SingleServiceAlertScenario, cmd_str: str):
 class TestOptimalPath:
     """
     Optimal sequence:
-      query_logs auth       → 0.05
-      check_config auth     → 0.10
-      diagnose bad_config   → 0.20
-      rollback_deploy auth  → 0.25
-      Total: 0.60  (done=True after rollback)
+      query_logs auth       -> 0.08
+      check_config auth     -> 0.10
+      diagnose bad_config   -> 0.20
+      rollback_deploy auth  -> 0.25
+      Total: 0.63  (done=True after rollback)
     """
 
     OPTIMAL_COMMANDS = [
@@ -44,7 +44,7 @@ class TestOptimalPath:
         "diagnose root_cause=bad_config",
         "rollback_deploy service=auth",
     ]
-    EXPECTED_REWARDS = [0.05, 0.10, 0.20, 0.25]
+    EXPECTED_REWARDS = [0.08, 0.10, 0.20, 0.25]
 
     def test_optimal_path_rewards(self):
         s = make_scenario()
@@ -86,7 +86,7 @@ class TestOptimalPath:
             step_cmd(s, cmd).reward
             for cmd in self.OPTIMAL_COMMANDS
         )
-        assert total == pytest.approx(0.60, abs=1e-6)
+        assert total == pytest.approx(0.63, abs=1e-6)
 
 
 # ── 2. Determinism ────────────────────────────────────────────────────────────
