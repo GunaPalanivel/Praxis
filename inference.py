@@ -62,7 +62,7 @@ FALLBACK_COMMANDS = {
         "restart_service service=dns-resolver",
     ],
     "memory-leak": [
-        "query_logs service=worker",
+        "query_logs service=worker timerange=10m",
         "check_metrics service=worker metric=memory",
         "check_config service=worker",
         "diagnose root_cause=large_batch_size_oom",

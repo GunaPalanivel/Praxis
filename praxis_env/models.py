@@ -1,12 +1,12 @@
 """
 praxis_env.models — Data models for Praxis environment.
 
-Uses Python dataclasses (not Pydantic) to match the OpenEnv scaffold pattern.
+Uses Pydantic BaseModel for full spec compliance with the OpenEnv typed model requirement.
 All models are fully typed with Python 3.11+ type hints.
 
 Design Decisions:
-  - dataclass over Pydantic: matches openenv-core's create_fastapi_app() expectations
-  - field() with default_factory for mutable defaults (list, dict)
+  - Pydantic BaseModel: provides robust validation and serialization
+  - Field(default_factory=...) for mutable defaults (list, dict)
   - No Optional where possible — every field should have a defined value
 """
 
