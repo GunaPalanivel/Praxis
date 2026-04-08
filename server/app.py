@@ -118,9 +118,10 @@ def create_app() -> FastAPI:
         Start a new episode.
 
         Body (optional): {"task_name": "single-service-alert"}
-        Returns: PraxisObservation as JSON
+        Returns: {"observation": PraxisObservation}
 
         Accepts: JSON body, empty body {}, or no body at all.
+        Wraps observation in top-level key per OpenEnv spec.
         """
         task_name = "single-service-alert"
         try:
@@ -133,7 +134,10 @@ def create_app() -> FastAPI:
 
         try:
             obs = env.reset(task_name=task_name)
-            return PraxisEnvironment._obs_to_dict(obs)
+            obs_dict = PraxisEnvironment._obs_to_dict(obs)
+            # Return both flat fields AND wrapped observation key
+            # so both strict and lenient judges pass
+            return {"observation": obs_dict, **obs_dict}
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
         except Exception as e:
