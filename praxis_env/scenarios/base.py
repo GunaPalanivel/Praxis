@@ -130,13 +130,23 @@ class BaseScenario(ABC):
 
     def get_observation(self) -> PraxisObservation:
         """Build the current PraxisObservation from scenario state."""
+        current_severity = self.SEVERITY
+        # Escalate severity if unresolved and past 70% of max steps
+        if not self._incident_resolved and self._step_count >= self.MAX_STEPS * 0.7:
+            if current_severity == "P3":
+                current_severity = "P2"
+            elif current_severity == "P2":
+                current_severity = "P1"
+            elif current_severity == "P1":
+                current_severity = "P0"
+
         return PraxisObservation(
             alert_summary=self.ALERT_SUMMARY,
             system_status=dict(self._current_system_status),
             investigation_result=self._last_investigation_result,
             available_commands=list(AVAILABLE_COMMANDS),
             time_elapsed_minutes=float(self._step_count * 2.5),  # 2.5 min per step
-            severity=self.SEVERITY,
+            severity=current_severity,
             services_affected=[
                 service
                 for service in self.INITIAL_AFFECTED_SERVICES

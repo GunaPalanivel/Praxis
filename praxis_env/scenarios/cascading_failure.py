@@ -708,6 +708,12 @@ Common failure modes:
 
         if query_id_norm in analytics_ids or "analytic" in query_id_norm or "runway" in query_id_norm:
             self._query_killed = True
+            # Update system status partially
+            if self._current_system_status.get("api") == "critical":
+                self._current_system_status["api"] = "degraded"
+            if self._current_system_status.get("auth") == "critical":
+                self._current_system_status["auth"] = "degraded"
+                
             # If pool was already scaled AND query killed, resolve
             done_now = self._pool_scaled  # fully resolved only if both done
             if done_now:
@@ -728,7 +734,7 @@ Common failure modes:
                     + (
                         "Incident fully resolved. Services recovering to healthy state."
                         if done_now else
-                        "Services are recovering. Consider scaling the connection pool to prevent recurrence."
+                        "Services are partially recovering (Critical -> Degraded). Consider scaling the connection pool to prevent recurrence."
                     )
                 ),
                 reward=score.reward,

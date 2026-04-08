@@ -12,6 +12,7 @@ from __future__ import annotations
 import asyncio
 import os
 import re
+import subprocess
 from dataclasses import dataclass
 
 from openai import OpenAI
@@ -26,12 +27,14 @@ DEFAULT_TASKS = [
     "single-service-alert",
     "cascading-failure",
     "ambiguous-incident",
+    "memory-leak",
 ]
 
 MAX_STEPS_BY_TASK = {
     "single-service-alert": 15,
     "cascading-failure": 20,
     "ambiguous-incident": 25,
+    "memory-leak": 25,
 }
 
 FALLBACK_COMMANDS = {
@@ -57,6 +60,13 @@ FALLBACK_COMMANDS = {
         "check_metrics service=dns-resolver metric=resolution_failures",
         "diagnose root_cause=dns_misconfiguration",
         "restart_service service=dns-resolver",
+    ],
+    "memory-leak": [
+        "query_logs service=worker",
+        "check_metrics service=worker metric=memory",
+        "check_config service=worker",
+        "diagnose root_cause=large_batch_size_oom",
+        "rollback_deploy service=worker",
     ],
 }
 
@@ -291,9 +301,11 @@ async def run_episode(task_name: str, client: OpenAI | None) -> EpisodeResult:
                 result = await env.step(PraxisAction(command=command))
                 reward = max(0.0, min(1.0, float(result.reward)))
                 done = bool(result.done)
+
                 info = result.info or {}
-                if info.get("error"):
+                if isinstance(info, dict) and info.get("error"):
                     error_value = str(info.get("error"))
+
                 print(
                     render_step_line(
                         step=step,
@@ -325,8 +337,9 @@ async def run_episode(task_name: str, client: OpenAI | None) -> EpisodeResult:
                 rewards.append(0.0)
                 steps_taken = step
                 break
-    except Exception:
+    except Exception as exc:
         encountered_fatal = True
+        print(f"[ERROR] Failed to start episode '{task_name}': {exc}")
     finally:
         try:
             await env.close()
@@ -339,11 +352,48 @@ async def run_episode(task_name: str, client: OpenAI | None) -> EpisodeResult:
     return EpisodeResult(success=success, steps=steps_taken, rewards=rewards)
 
 
+def ensure_server_running(url: str) -> subprocess.Popen | None:
+    import httpx
+    import time
+    try:
+        response = httpx.get(f"{url}/health", timeout=1.0)
+        if response.status_code == 200:
+            return None
+    except Exception:
+        pass
+
+    print("[INFO] Starting local environment server for standalone inference...", flush=True)
+    import sys
+    import subprocess
+    port = url.split(":")[-1].replace("/", "")
+    cmd = [sys.executable, "-m", "uvicorn", "server.app:app", "--port", port, "--host", "127.0.0.1"]
+    proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    
+    start_time = time.time()
+    while time.time() - start_time < 15.0:
+        try:
+            if httpx.get(f"{url}/health", timeout=1.0).status_code == 200:
+                print("[INFO] Server is healthy.", flush=True)
+                break
+        except Exception:
+            time.sleep(0.5)
+    return proc
+
+
 async def main() -> None:
-    client = _build_client()
-    tasks = parse_task_list(os.getenv("PRAXIS_TASKS"))
-    for task in tasks:
-        await run_episode(task_name=task, client=client)
+    server_proc = None
+    try:
+        import subprocess
+        server_proc = ensure_server_running(PRAXIS_URL)
+
+        client = _build_client()
+        tasks = parse_task_list(os.getenv("PRAXIS_TASKS"))
+        for task in tasks:
+            await run_episode(task_name=task, client=client)
+    finally:
+        if server_proc:
+            server_proc.terminate()
+            server_proc.wait()
 
 
 if __name__ == "__main__":

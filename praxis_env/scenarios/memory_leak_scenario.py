@@ -318,7 +318,7 @@ Typical issues:
     def _handle_rollback(self, command: ParsedCommand) -> StepOutcome:
         service = get_service_param(command.params)
         if service == "worker":
-            score = self._score_event("remediation.correct")
+            score = self._score_event("remediation.rollback_deploy.worker", resolved=True)
             self._incident_resolved = True
             self._current_system_status = {k: "healthy" for k in self._current_system_status}
             return StepOutcome(
@@ -341,7 +341,7 @@ Typical issues:
         service = get_service_param(command.params)
         resource = command.params.get("resource", "").lower()
         if service == "worker" and resource == "memory":
-            score = self._score_event("remediation.correct")
+            score = self._score_event("remediation.scale_resource.worker.memory", resolved=True)
             self._incident_resolved = True
             self._current_system_status = {k: "healthy" for k in self._current_system_status}
             return StepOutcome(

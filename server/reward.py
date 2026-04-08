@@ -206,6 +206,35 @@ DEFAULT_REWARD_POLICIES: dict[str, RewardPolicy] = {
         # Hard task: mild step cost
         time_pressure_cost_per_step=0.003,
     ),
+    # ── TASK 4: memory-leak ─────────────────────────────────────────────
+    # Requires checking memory metrics and config to find the OOM cause.
+    "memory-leak": RewardPolicy(
+        event_values={
+            # Investigation
+            "investigation.query_logs.worker": 0.05,
+            "investigation.query_logs.default": 0.02,
+            "investigation.check_metrics.worker.memory": 0.10,
+            "investigation.check_metrics.default": 0.02,
+            "investigation.check_deps.default": 0.02,
+            "investigation.check_config.worker": 0.05,
+            "investigation.check_config.default": 0.02,
+            "investigation.check_runbook.default": 0.03,
+            # Diagnosis
+            "diagnosis.correct": 0.15,
+            "diagnosis.wrong": 0.0,
+            # Remediation
+            "remediation.rollback_deploy.worker": 0.20,
+            "remediation.scale_resource.worker.memory": 0.20,
+            "remediation.wrong": 0.0,
+            # Escalation
+            "escalation.with_evidence": 0.10,
+            "escalation.no_evidence": 0.0,
+            # Error handling
+            "unknown_command": 0.0,
+            "invalid_input": 0.0,
+        },
+        time_pressure_cost_per_step=0.004,
+    ),
 }
 
 

@@ -72,6 +72,7 @@ def test_parse_task_list_uses_defaults_for_empty_input():
         "single-service-alert",
         "cascading-failure",
         "ambiguous-incident",
+        "memory-leak",
     ]
 
 
@@ -88,6 +89,7 @@ def test_parse_task_list_falls_back_when_all_invalid():
         "single-service-alert",
         "cascading-failure",
         "ambiguous-incident",
+        "memory-leak",
     ]
 
 
