@@ -21,7 +21,7 @@ Incident response is a real production workflow, not a toy benchmark. On-call en
 evidence gathering, diagnosis, and remediation under time pressure. Praxis models that workflow with deterministic tasks
 and programmatic graders so agent progress can be measured reliably.
 
-The evaluation design targets practical utility: three escalating tasks, reward shaping over the trajectory, and clear
+The evaluation design targets practical utility: four escalating tasks, reward shaping over the trajectory, and clear
 success criteria. This gives useful signal for both training and model comparison while remaining reproducible for
 judging and regression testing.
 

@@ -1,6 +1,6 @@
 # Tasks
 
-Praxis currently exposes three implemented tasks. Each task is deterministic:
+Praxis currently exposes four implemented tasks. Each task is deterministic:
 the same command sequence produces the same observations and rewards every run.
 
 Current registered task IDs:

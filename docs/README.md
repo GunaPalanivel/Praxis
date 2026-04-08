@@ -21,7 +21,7 @@ This documentation set describes the repository as it exists today:
 | [Getting Started](./getting-started.md)     | Install the repo, run the server, and play a first episode |
 | [Action Space](./action-space.md)           | Command grammar and supported agent actions                |
 | [Observation Space](./observation-space.md) | Observation fields and current response semantics          |
-| [Tasks](./tasks.md)                         | Current task catalog: 3 implemented tasks                  |
+| [Tasks](./tasks.md)                         | Current task catalog: 4 implemented tasks                  |
 | [API Reference](./api-reference.md)         | HTTP endpoint contracts for the current server             |
 | [Configuration](./configuration.md)         | Current runtime settings and planned submission variables  |
 | [Deployment](./deployment.md)               | Docker build/run flow and HF Spaces deployment checklist   |
