@@ -10,12 +10,14 @@ from praxis_env.scenarios.base import BaseScenario
 from praxis_env.scenarios.single_service_alert import SingleServiceAlertScenario
 from praxis_env.scenarios.cascading_failure import CascadingFailureScenario
 from praxis_env.scenarios.ambiguous_incident import AmbiguousIncidentScenario
+from praxis_env.scenarios.memory_leak_scenario import MemoryLeakScenario
 
 # Populated as phases complete. Add new scenarios here.
 SCENARIO_REGISTRY: dict[str, type[BaseScenario]] = {
     "single-service-alert": SingleServiceAlertScenario,
     "cascading-failure": CascadingFailureScenario,
     "ambiguous-incident": AmbiguousIncidentScenario,
+    "memory-leak": MemoryLeakScenario,
 }
 
 
