@@ -39,6 +39,8 @@ Optional smoke checks:
 
 ```bash
 curl http://localhost:7860/tasks
+curl -X POST http://localhost:7860/reset
+curl -X POST http://localhost:7860/reset -H "Content-Type: application/json" -d '{}'
 curl -X POST http://localhost:7860/reset -H "Content-Type: application/json" -d '{"task_name":"single-service-alert"}'
 curl -X POST http://localhost:7860/step -H "Content-Type: application/json" -d '{"command":"query_logs service=auth timerange=5m"}'
 ```
@@ -55,7 +57,7 @@ The agent sends one text command per step.
 | `check_metrics service=<name> metric=<type>`    | Read service or infrastructure metrics                      |
 | `check_deps service=<name>`                     | Inspect dependency graph for a service                      |
 | `check_config service=<name>`                   | Inspect recent config and deployment changes                |
-| `check_runbook service=<name>`                  | Access institutional SRE runbooks for triage guidance        |
+| `check_runbook service=<name>`                  | Access institutional SRE runbooks for triage guidance       |
 | `diagnose root_cause=<cause>`                   | Declare the suspected root cause                            |
 | `restart_service service=<name>`                | Restart a service as remediation                            |
 | `rollback_deploy service=<name>`                | Roll back a recent deploy                                   |
@@ -173,9 +175,9 @@ Reference scores from deterministic scenario tests (`pytest tests/ -v`):
 
 | Task                   | Optimal Steps | Optimal Path Score | Expected Live Model Range |
 | ---------------------- | ------------- | ------------------ | ------------------------- |
-| `single-service-alert` | 4             | 0.63               | 0.55 - 0.70              |
-| `cascading-failure`    | 7             | 0.485              | 0.30 - 0.52              |
-| `ambiguous-incident`   | 9             | 0.753              | 0.15 - 0.40              |
+| `single-service-alert` | 4             | 0.63               | 0.55 - 0.70               |
+| `cascading-failure`    | 7             | 0.485              | 0.30 - 0.52               |
+| `ambiguous-incident`   | 9             | 0.753              | 0.15 - 0.40               |
 
 The difficulty progression is verified: Easy > Medium > Hard in expected live model scores. The optimal path scores reflect the deterministic ceiling, while live model scores are lower due to exploration, wrong diagnoses, and step cost accumulation.
 
@@ -208,13 +210,16 @@ and add task-specific tests under `tests/`.
 
 ## API Reference
 
-| Endpoint  | Method | Request               | Response                                |
-| --------- | ------ | --------------------- | --------------------------------------- |
-| `/health` | GET    | none                  | status, version, available tasks        |
-| `/tasks`  | GET    | none                  | task list                               |
-| `/reset`  | POST   | `{"task_name":"..."}` | initial observation                     |
-| `/step`   | POST   | `{"command":"..."}`   | `observation`, `reward`, `done`, `info` |
-| `/state`  | GET    | none                  | episode metadata                        |
+| Endpoint  | Method | Request                              | Response                                |
+| --------- | ------ | ------------------------------------ | --------------------------------------- |
+| `/health` | GET    | none                                 | status, version, available tasks        |
+| `/tasks`  | GET    | none                                 | task list                               |
+| `/reset`  | POST   | none, `{}`, or `{"task_name":"..."}` | initial observation                     |
+| `/step`   | POST   | `{"command":"..."}`                  | `observation`, `reward`, `done`, `info` |
+| `/state`  | GET    | none                                 | episode metadata                        |
+
+`POST /reset` accepts an optional JSON body. If no body is sent (or `{}` is
+sent), the default task is `single-service-alert`.
 
 `observation` in `/step` and `/reset` includes:
 `alert_summary`, `system_status`, `investigation_result`, `available_commands`,
@@ -226,6 +231,8 @@ Action Space section.
 Minimal request examples:
 
 ```bash
+curl -X POST http://localhost:7860/reset
+curl -X POST http://localhost:7860/reset -H "Content-Type: application/json" -d '{}'
 curl -X POST http://localhost:7860/reset -H "Content-Type: application/json" -d '{"task_name":"single-service-alert"}'
 curl -X POST http://localhost:7860/step -H "Content-Type: application/json" -d '{"command":"diagnose root_cause=bad_config"}'
 ```

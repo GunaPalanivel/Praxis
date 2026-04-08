@@ -28,6 +28,12 @@ Start a new episode and clear all previous episode state.
 
 ### Request
 
+The request body is optional. All three forms below are valid:
+
+- No body (defaults to `single-service-alert`)
+- Empty JSON object (`{}`)
+- Explicit task selection (`{"task_name": "..."}`)
+
 ```json
 {
   "task_name": "single-service-alert"

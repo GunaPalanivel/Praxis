@@ -118,10 +118,10 @@ def create_app() -> FastAPI:
         Start a new episode.
 
         Body (optional): {"task_name": "single-service-alert"}
-        Returns: {"observation": PraxisObservation}
+        Returns: {"observation": PraxisObservation, ...flat_fields}
 
         Accepts: JSON body, empty body {}, or no body at all.
-        Wraps observation in top-level key per OpenEnv spec.
+        Includes both wrapped and flat observation fields for compatibility.
         """
         task_name = "single-service-alert"
         try:

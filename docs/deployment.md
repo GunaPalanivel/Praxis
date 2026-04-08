@@ -34,6 +34,8 @@ The image starts `python -m server.app` and uses these defaults:
 ```bash
 curl http://localhost:7860/health
 curl http://localhost:7860/tasks
+curl -X POST http://localhost:7860/reset
+curl -X POST http://localhost:7860/reset -H "Content-Type: application/json" -d '{}'
 curl -X POST http://localhost:7860/reset -H "Content-Type: application/json" -d '{"task_name":"single-service-alert"}'
 ```
 
