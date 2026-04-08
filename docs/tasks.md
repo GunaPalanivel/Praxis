@@ -233,7 +233,7 @@ Red herrings:
 
 | Action                                            | Reward  |
 | ------------------------------------------------- | ------- |
-| `query_logs service=worker`                       | `+0.05` |
+| `query_logs service=worker timerange=10m` | `+0.05` |
 | `check_metrics service=worker metric=memory`      | `+0.10` |
 | `check_config service=worker`                     | `+0.05` |
 | `diagnose root_cause=large_batch_size_oom`        | `+0.15` |

@@ -18,7 +18,7 @@ Red herrings:
   3. API service shows 502 Bad Gateway intermittently (because the worker pod is restarting).
 
 Optimal path:
-  1. query_logs service=worker               -> See GC pauses and OOMKilled     (+0.05)
+  1. query_logs service=worker timerange=10m   -> See GC pauses and OOMKilled     (+0.05)
   2. check_metrics service=worker metric=memory -> Sawtooth pattern at 99%      (+0.08)
   3. check_config service=worker             -> Discovers batch_size=5000       (+0.05)
   4. diagnose root_cause=large_batch_size_oom -> CORRECT                     (+0.20)
