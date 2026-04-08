@@ -22,7 +22,7 @@ from __future__ import annotations
 import logging
 import os
 from contextlib import asynccontextmanager
-from typing import Any, Optional
+from typing import Any
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -113,16 +113,26 @@ def create_app() -> FastAPI:
         }
 
     @app.post("/reset")
-    async def reset(request: Optional[ResetRequest] = None) -> dict[str, Any]:
+    async def reset(request: Request) -> dict[str, Any]:
         """
         Start a new episode.
 
-        Body: {"task_name": "single-service-alert"}
+        Body (optional): {"task_name": "single-service-alert"}
         Returns: PraxisObservation as JSON
+
+        Accepts: JSON body, empty body {}, or no body at all.
         """
-        task = (request.task_name if request else None) or "single-service-alert"
+        task_name = "single-service-alert"
         try:
-            obs = env.reset(task_name=task)
+            body = await request.body()
+            if body and body.strip():
+                data = await request.json()
+                task_name = data.get("task_name", "single-service-alert") or "single-service-alert"
+        except Exception:
+            pass  # no body or invalid JSON — use default task
+
+        try:
+            obs = env.reset(task_name=task_name)
             return PraxisEnvironment._obs_to_dict(obs)
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
