@@ -10,7 +10,7 @@ Design Decisions:
   - No Optional where possible — every field should have a defined value
 """
 
-from dataclasses import dataclass, field
+from pydantic import BaseModel, Field, model_validator
 from typing import Any
 import unicodedata
 
@@ -53,17 +53,15 @@ def ensure_ascii_text(text: str) -> str:
     return normalized.encode("ascii", "ignore").decode("ascii")
 
 
-@dataclass
-class ParsedCommand:
+class ParsedCommand(BaseModel):
     """Structured representation of a parsed action command string."""
 
     action_type: str
-    params: dict[str, str] = field(default_factory=dict)
+    params: dict[str, str] = Field(default_factory=dict)
     raw: str = ""
 
 
-@dataclass
-class StepOutcome:
+class StepOutcome(BaseModel):
     """
     Internal result from a scenario processing a command.
     Converted to HTTP response by the environment server.
@@ -74,15 +72,16 @@ class StepOutcome:
     done: bool
     incident_resolved: bool
     root_cause_identified: bool
-    info: dict[str, Any] = field(default_factory=dict)
+    info: dict[str, Any] = Field(default_factory=dict)
 
-    def __post_init__(self) -> None:
+    @model_validator(mode='after')
+    def normalize_text(self) -> 'StepOutcome':
         self.investigation_result = ensure_ascii_text(self.investigation_result)
+        return self
 
 
 
-@dataclass
-class PraxisAction:
+class PraxisAction(BaseModel):
     """
     What the agent sends to the environment each step.
 
@@ -111,8 +110,7 @@ class PraxisAction:
     command: str
 
 
-@dataclass
-class PraxisObservation:
+class PraxisObservation(BaseModel):
     """
     What the agent receives after each action (or from reset()).
 
@@ -141,13 +139,14 @@ class PraxisObservation:
     services_affected: list[str]
     step_number: int
 
-    def __post_init__(self) -> None:
+    @model_validator(mode='after')
+    def normalize_text(self) -> 'PraxisObservation':
         self.alert_summary = ensure_ascii_text(self.alert_summary)
         self.investigation_result = ensure_ascii_text(self.investigation_result)
+        return self
 
 
-@dataclass
-class PraxisState:
+class PraxisState(BaseModel):
     """
     Episode metadata exposed via the state() endpoint.
 

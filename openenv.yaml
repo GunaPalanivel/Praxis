@@ -1,3 +1,21 @@
 name: "praxis-env"
 version: "1.0.0"
 description: "Production Incident Response Training Ground — simulating real-world SRE on-call triage for AI agents. Agents investigate alerts, query logs and metrics, diagnose root causes across service dependency graphs, and execute remediations. Three tasks with escalating difficulty expose genuine gaps in frontier model reasoning."
+tasks:
+  - name: single-service-alert
+    difficulty: easy
+    max_steps: 15
+  - name: cascading-failure
+    difficulty: medium
+    max_steps: 20
+  - name: ambiguous-incident
+    difficulty: hard
+    max_steps: 25
+  - name: memory-leak
+    difficulty: hard
+    max_steps: 25
+action:
+  type: text
+  field: command
+observation:
+  fields: [alert_summary, system_status, investigation_result, available_commands, time_elapsed_minutes, severity, services_affected, step_number]
