@@ -36,15 +36,16 @@ incident response. The agent receives an incident alert, inspects logs and
 metrics, checks service dependencies, and then decides whether to diagnose,
 remediate, or escalate.
 
-The current repo includes implementation through Phase 7:
+The current repo includes implementation through Phase 9:
 
-- Phase 1-2: environment models, parser, server routes, and lifecycle
+- Phase 1-2: Environment models, parser, server routes, and lifecycle
 - Phase 3: `single-service-alert`
 - Phase 4: `cascading-failure`
 - Phase 5: `ambiguous-incident`
-- Phase 6: centralized reward engine and quality gates
-- Phase 7: baseline inference script and output-contract tests
-- Phase 8: Docker packaging and deployment guide
+- Phase 6: Centralized reward engine, step-cost penalties, and baseline thresholds
+- Phase 7: Baseline inference script and output-contract tests
+- Phase 8: `check_runbook` mechanic, doc extraction, and difficulty re-calibration
+- Phase 9: Docker packaging, OpenEnv spec compliance, and final pre-submission cross-checks
 
 If you need the live contract, use the code and passing tests as the source of
 truth, then use these docs as the synced explanation of that state.

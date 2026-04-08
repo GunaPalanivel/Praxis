@@ -121,6 +121,26 @@ check_config service=auth
 
 ---
 
+### `check_runbook`
+
+Check the institutional runbook for standard triage steps for a service.
+
+```
+check_runbook service=<name>
+```
+
+**Example:**
+
+```
+check_runbook service=frontend
+```
+
+**Returns:** The structured standard operating procedures for the service.
+
+**Reward:** `+0.05` (runbook bonus) — encourages agents to follow structured institutional knowledge.
+
+---
+
 ## Diagnosis Command
 
 ### `diagnose`
