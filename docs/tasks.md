@@ -8,6 +8,7 @@ Current registered task IDs:
 - `single-service-alert`
 - `cascading-failure`
 - `ambiguous-incident`
+- `memory-leak`
 
 Current reward behavior:
 
@@ -205,6 +206,39 @@ Task 3 is now implemented and covered by `tests/test_task3_ambiguous_incident.py
 including optimal-path, evidence-threshold, red-herring, determinism, and
 reward-bound checks.
 
+## Task 4: Memory Leak
+
+**ID**: `memory-leak`  
+**Difficulty**: Hard  
+**Severity**: P2  
+**Max steps**: 25
+
+### Scenario
+
+The async `worker` service is experiencing periodic crashes and high latency processing jobs. A recent configuration change increased `BATCH_SIZE` from 100 to 5000. Under peak load, this causes the Node.js event loop to block and exhaust the heap, leading to OOM crashes.
+
+Red herrings:
+1. DB latency is slightly elevated (caused by worker holding connections).
+2. Memory leak in `metrics-agent` (known issue).
+3. API service intermittently shows 502 Bad Gateway.
+
+### What the agent needs to do
+
+1. Check logs and memory metrics of the worker.
+2. Check the worker's configuration.
+3. Diagnose the issue as `large_batch_size_oom`.
+4. Rollback the deploy or scale resource memory.
+
+### Scoring (optimal path = 0.68)
+
+| Action                                            | Reward  |
+| ------------------------------------------------- | ------- |
+| `query_logs service=worker`                       | `+0.05` |
+| `check_metrics service=worker metric=memory`      | `+0.10` |
+| `check_config service=worker`                     | `+0.05` |
+| `diagnose root_cause=large_batch_size_oom`        | `+0.15` |
+| `rollback_deploy service=worker`                  | `+0.20` |
+
 ---
 
 ## Querying available tasks
@@ -217,6 +251,6 @@ Current response:
 
 ```json
 {
-  "tasks": ["ambiguous-incident", "cascading-failure", "single-service-alert"]
+  "tasks": ["ambiguous-incident", "cascading-failure", "memory-leak", "single-service-alert"]
 }
 ```

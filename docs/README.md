@@ -5,7 +5,7 @@ Current development docs for the Praxis incident-response environment.
 This documentation set describes the repository as it exists today:
 
 - FastAPI server with `POST /reset`, `POST /step`, `GET /state`, `GET /tasks`, and `GET /health`
-- Three implemented tasks: `single-service-alert`, `cascading-failure`, and `ambiguous-incident`
+- Four implemented tasks: `single-service-alert`, `cascading-failure`, `ambiguous-incident`, and `memory-leak`
 - ASCII-normalized observation text for stable local console output
 - Centralized per-step reward engine in `server/reward.py`
 - Per-step rewards in `[0.0, 1.0]`
@@ -45,7 +45,8 @@ The current repo includes implementation through Phase 9:
 - Phase 6: Centralized reward engine, step-cost penalties, and baseline thresholds
 - Phase 7: Baseline inference script and output-contract tests
 - Phase 8: `check_runbook` mechanic, doc extraction, and difficulty re-calibration
-- Phase 9: Docker packaging, OpenEnv spec compliance, and final pre-submission cross-checks
+- Phase 9: Docker packaging, OpenEnv spec compliance (Pydantic migration, metadata enrichment)
+- Phase 10: `memory-leak` scenario, dynamic game mechanics, and test updates
 
 If you need the live contract, use the code and passing tests as the source of
 truth, then use these docs as the synced explanation of that state.
