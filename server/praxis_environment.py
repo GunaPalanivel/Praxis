@@ -120,7 +120,9 @@ class PraxisEnvironment:
         # Update scenario's investigation result for next observation
         self._scenario._last_investigation_result = outcome.investigation_result
         self._scenario._step_count += 1
-        self._scenario._cumulative_reward += outcome.reward
+        self._scenario._cumulative_reward = self._scenario.clamp_reward(
+            self._scenario._cumulative_reward + outcome.reward
+        )
 
         # Build the next observation
         obs = self._scenario.get_observation()
