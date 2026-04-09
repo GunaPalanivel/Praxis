@@ -116,12 +116,13 @@ class PraxisEnvironment:
 
         # Delegate to active scenario
         outcome: StepOutcome = self._scenario.step(parsed)
+        step_reward = self._scenario.clamp_reward(outcome.reward)
 
         # Update scenario's investigation result for next observation
         self._scenario._last_investigation_result = outcome.investigation_result
         self._scenario._step_count += 1
         self._scenario._cumulative_reward = self._scenario.clamp_reward(
-            self._scenario._cumulative_reward + outcome.reward
+            self._scenario._cumulative_reward + step_reward
         )
 
         # Build the next observation
@@ -131,14 +132,14 @@ class PraxisEnvironment:
 
         logger.debug(
             "step() → reward=%.3f done=%s step=%d",
-            outcome.reward,
+            step_reward,
             outcome.done,
             obs.step_number,
         )
 
         return {
             "observation": self._obs_to_dict(obs),
-            "reward": outcome.reward,
+            "reward": step_reward,
             "done": outcome.done or self._scenario.is_done(),
             "info": outcome.info,
         }

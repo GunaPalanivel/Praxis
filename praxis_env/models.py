@@ -167,7 +167,7 @@ class PraxisState(BaseModel):
     task_name: str
     incident_resolved: bool = False
     root_cause_identified: bool = False
-    cumulative_reward: float = 0.0
+    cumulative_reward: float = 0.001
 
 
 # ────────────────────────────────────────────────────────────────────────────

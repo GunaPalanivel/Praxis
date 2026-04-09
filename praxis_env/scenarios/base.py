@@ -63,7 +63,7 @@ class BaseScenario(ABC):
     def __init__(self) -> None:
         # Episode instance state — reset each time
         self._step_count: int = 0
-        self._cumulative_reward: float = 0.0
+        self._cumulative_reward: float = 0.001
         self._incident_resolved: bool = False
         self._root_cause_identified: bool = False
         self._investigation_history: list[str] = []
@@ -172,7 +172,7 @@ class BaseScenario(ABC):
 
     @staticmethod
     def clamp_reward(reward: float) -> float:
-        """Clamp reward to judge-safe bounds while staying inside [0.0, 1.0]."""
+        """Clamp reward to the judge-safe open interval [0.001, 0.999]."""
         return max(0.001, min(0.999, reward))
 
     def _score_event(

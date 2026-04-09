@@ -31,7 +31,7 @@ MAX_REWARD = 0.999
 
 
 def clamp_reward(value: float) -> float:
-    """Clamp score to a judge-safe open interval while staying in [0.0, 1.0]."""
+    """Clamp score to the judge-safe open interval [0.001, 0.999]."""
     return max(MIN_REWARD, min(MAX_REWARD, value))
 
 
