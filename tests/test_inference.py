@@ -76,6 +76,11 @@ def test_clamp_output_reward_uses_printable_safe_bounds():
     assert inference.clamp_output_reward(2.0) == pytest.approx(0.99)
 
 
+def test_clamp_output_reward_exact_open_interval_edges():
+    assert inference.clamp_output_reward(0.0) == pytest.approx(0.01)
+    assert inference.clamp_output_reward(1.0) == pytest.approx(0.99)
+
+
 def test_format_rewards_csv_printable_safe_bounds():
     assert inference.format_rewards_csv([0.01, 0.99]) == "0.01,0.99"
 
@@ -187,3 +192,102 @@ def test_emit_step_line_once_skips_duplicate_step(capsys):
     assert first is True
     assert second is False
     assert captured.out.count("[STEP] step=2") == 1
+
+
+class _FakeStepResult:
+    def __init__(self, observation, reward, done, info=None):
+        self.observation = observation
+        self.reward = reward
+        self.done = done
+        self.info = info or {}
+
+
+def _make_fake_observation(step_number: int = 0):
+    return inference.PraxisObservation(
+        alert_summary="Synthetic test alert",
+        system_status={"auth": "critical"},
+        investigation_result="Synthetic investigation result",
+        available_commands=["query_logs service=<name> timerange=<N>m"],
+        time_elapsed_minutes=float(step_number * 2.5),
+        severity="P2",
+        services_affected=["auth"],
+        step_number=step_number,
+    )
+
+
+class _FakeEnv:
+    def __init__(self, *, reward: float | None = None, raise_on_step: bool = False):
+        self._reward = reward
+        self._raise_on_step = raise_on_step
+        self._step_count = 0
+
+    async def reset(self, task_name: str = "single-service-alert"):
+        self._step_count = 0
+        return _make_fake_observation(step_number=0)
+
+    async def step(self, action):
+        if self._raise_on_step:
+            raise RuntimeError("simulated_step_failure")
+
+        self._step_count += 1
+        return _FakeStepResult(
+            observation=_make_fake_observation(step_number=self._step_count),
+            reward=float(self._reward if self._reward is not None else 0.5),
+            done=True,
+            info={},
+        )
+
+    async def close(self):
+        return None
+
+
+@pytest.mark.asyncio
+async def test_run_episode_clamps_raw_zero_reward_to_output_floor(monkeypatch, capsys):
+    fake_env = _FakeEnv(reward=0.0)
+
+    async def _fake_from_url(cls, url: str, timeout: float = 30.0):
+        return fake_env
+
+    monkeypatch.setattr(inference.PraxisEnv, "from_url", classmethod(_fake_from_url))
+
+    result = await inference.run_episode("single-service-alert", client=None)
+    out = capsys.readouterr().out
+
+    assert result.rewards == [pytest.approx(0.01)]
+    assert "reward=0.01" in out
+    assert "rewards=0.01" in out
+
+
+@pytest.mark.asyncio
+async def test_run_episode_clamps_raw_one_reward_to_output_ceiling(monkeypatch, capsys):
+    fake_env = _FakeEnv(reward=1.0)
+
+    async def _fake_from_url(cls, url: str, timeout: float = 30.0):
+        return fake_env
+
+    monkeypatch.setattr(inference.PraxisEnv, "from_url", classmethod(_fake_from_url))
+
+    result = await inference.run_episode("single-service-alert", client=None)
+    out = capsys.readouterr().out
+
+    assert result.rewards == [pytest.approx(0.99)]
+    assert "reward=0.99" in out
+    assert "rewards=0.99" in out
+
+
+@pytest.mark.asyncio
+async def test_run_episode_step_exception_uses_output_floor(monkeypatch, capsys):
+    fake_env = _FakeEnv(raise_on_step=True)
+
+    async def _fake_from_url(cls, url: str, timeout: float = 30.0):
+        return fake_env
+
+    monkeypatch.setattr(inference.PraxisEnv, "from_url", classmethod(_fake_from_url))
+
+    result = await inference.run_episode("single-service-alert", client=None)
+    out = capsys.readouterr().out
+
+    assert result.rewards == [pytest.approx(0.01)]
+    assert "reward=0.01" in out
+    assert "simulated_step_failure" in out
+    assert "rewards=0.01" in out
