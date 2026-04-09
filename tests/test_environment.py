@@ -329,7 +329,7 @@ class TestEpisodeScoreBudget:
         assert all(0.0 < reward < 1.0 for reward in rewards)
         assert sum(rewards) < 1.0
 
-        expected_cumulative = min(0.999, 0.001 + sum(rewards))
+        expected_cumulative = min(0.99, 0.01 + sum(rewards))
         assert env.state().cumulative_reward == pytest.approx(expected_cumulative)
 
         if expect_score_cap:
@@ -367,12 +367,12 @@ class TestEpisodeScoreBudget:
 
         env, _, last_result = self._run_commands(task_name, commands)
         assert last_result["info"].get("score_cap_reached") is True
-        assert env.state().cumulative_reward == pytest.approx(0.999)
+        assert env.state().cumulative_reward == pytest.approx(0.99)
 
         repeated = env.step(PraxisAction(command="query_logs service=auth timerange=5m"))
 
-        assert repeated["reward"] == pytest.approx(0.001)
+        assert repeated["reward"] == pytest.approx(0.01)
         assert repeated["done"] is True
         assert repeated["info"]["error"] == "episode_score_cap_reached"
         assert repeated["info"]["score_cap_reached"] is True
-        assert env.state().cumulative_reward == pytest.approx(0.999)
+        assert env.state().cumulative_reward == pytest.approx(0.99)

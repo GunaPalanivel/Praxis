@@ -134,7 +134,7 @@ QUALITY_CASES = [
             "rollback_deploy service=api",
             "escalate reason=need help",
         ],
-        0.40,
+        0.38,
     ),
     (
         AmbiguousIncidentScenario,
@@ -231,7 +231,7 @@ def test_environment_path_rewards_stay_in_bounds(task_name, commands):
     rewards = run_environment_path(task_name, commands)
     assert rewards, "Expected at least one reward value"
     for reward in rewards:
-        assert 0.001 <= reward <= 0.999
+        assert 0.01 <= reward <= 0.99
 
 
 @pytest.mark.parametrize(
@@ -253,7 +253,7 @@ def test_environment_terminates_when_max_steps_reached(task_name, max_steps):
 
     assert result is not None
     assert result["done"] is True
-    assert 0.001 <= result["reward"] <= 0.999
+    assert 0.01 <= result["reward"] <= 0.99
 
     state = env.state()
     assert state.step_count == max_steps

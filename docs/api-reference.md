@@ -18,7 +18,7 @@ Notes about the current contract:
 
 - `alert_summary` and `investigation_result` are ASCII-normalized text payloads.
 - `services_affected` is an array of service names with non-healthy status.
-- Per-step `reward` is centrally computed and bounded to `[0.001, 0.999]`.
+- Per-step `reward` is centrally computed and bounded to `[0.01, 0.99]`.
 
 ---
 
@@ -141,7 +141,7 @@ You must call `/reset` first.
 | Field         | Type    | Description                           |
 | ------------- | ------- | ------------------------------------- |
 | `observation` | object  | The new observation after the command |
-| `reward`      | float   | Per-step reward in `[0.001, 0.999]`   |
+| `reward`      | float   | Per-step reward in `[0.01, 0.99]`     |
 | `done`        | boolean | `true` when the episode has ended     |
 | `info`        | object  | Optional debug metadata               |
 

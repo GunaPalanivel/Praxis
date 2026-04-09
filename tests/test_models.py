@@ -97,7 +97,7 @@ class TestPraxisState:
         )
         assert state.incident_resolved is False
         assert state.root_cause_identified is False
-        assert state.cumulative_reward == pytest.approx(0.001)
+        assert state.cumulative_reward == pytest.approx(0.01)
 
     def test_all_fields_present(self):
         state = PraxisState(

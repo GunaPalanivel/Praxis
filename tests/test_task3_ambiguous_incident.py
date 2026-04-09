@@ -64,7 +64,7 @@ class TestEvidenceRules:
         scenario = make_scenario()
         step_cmd(scenario, "query_logs service=frontend timerange=10m")
         outcome = step_cmd(scenario, "diagnose root_cause=dns_misconfiguration")
-        assert outcome.reward == pytest.approx(0.001)
+        assert outcome.reward == pytest.approx(0.01)
         assert outcome.root_cause_identified is False
 
     def test_two_app_services_plus_infra_is_still_insufficient(self):
@@ -73,13 +73,13 @@ class TestEvidenceRules:
         step_cmd(scenario, "query_logs service=api timerange=10m")
         step_cmd(scenario, "check_metrics service=dns-resolver metric=resolution_failures")
         outcome = step_cmd(scenario, "diagnose root_cause=dns_misconfiguration")
-        assert outcome.reward == pytest.approx(0.001)
+        assert outcome.reward == pytest.approx(0.01)
         assert outcome.root_cause_identified is False
 
     def test_escalate_without_enough_evidence_is_penalized(self):
         scenario = make_scenario()
         outcome = step_cmd(scenario, "escalate reason=need help")
-        assert outcome.reward == pytest.approx(0.001)
+        assert outcome.reward == pytest.approx(0.01)
         assert outcome.done is True
         assert outcome.incident_resolved is False
 
@@ -99,25 +99,25 @@ class TestRedHerrings:
     def test_api_deployment_diagnosis_gets_wrong_diagnosis_penalty(self):
         scenario = make_scenario()
         outcome = step_cmd(scenario, "diagnose root_cause=api_deployment")
-        assert outcome.reward == pytest.approx(0.001)
+        assert outcome.reward == pytest.approx(0.01)
         assert "deploy" in outcome.investigation_result.lower()
 
     def test_auth_memory_diagnosis_gets_wrong_diagnosis_penalty(self):
         scenario = make_scenario()
         outcome = step_cmd(scenario, "diagnose root_cause=auth_memory")
-        assert outcome.reward == pytest.approx(0.001)
+        assert outcome.reward == pytest.approx(0.01)
         assert "memory" in outcome.investigation_result.lower()
 
     def test_search_bug_diagnosis_gets_wrong_diagnosis_penalty(self):
         scenario = make_scenario()
         outcome = step_cmd(scenario, "diagnose root_cause=search_bug")
-        assert outcome.reward == pytest.approx(0.001)
+        assert outcome.reward == pytest.approx(0.01)
         assert "search" in outcome.investigation_result.lower()
 
     def test_restarting_wrong_service_does_not_resolve(self):
         scenario = make_scenario()
         outcome = step_cmd(scenario, "restart_service service=api")
-        assert outcome.reward == pytest.approx(0.001)
+        assert outcome.reward == pytest.approx(0.01)
         assert outcome.incident_resolved is False
 
 
@@ -181,7 +181,7 @@ class TestRewardBounds:
     def test_reward_in_bounds(self, cmd):
         scenario = make_scenario()
         outcome = step_cmd(scenario, cmd)
-        assert 0.001 <= outcome.reward <= 0.999
+        assert 0.01 <= outcome.reward <= 0.99
 
     @pytest.mark.parametrize("cmd", REPRESENTATIVE_COMMANDS)
     def test_never_raises(self, cmd):

@@ -110,7 +110,7 @@ Difficulty progression is intentional: isolated service incident (easy) -> ambig
 
 ## Reward Function
 
-Rewards are per-step and clamped to `[0.001, 0.999]`.
+Rewards are per-step and clamped to `[0.01, 0.99]`.
 
 - **Investigation actions**: small positive signal when evidence is relevant.
 - **Correct diagnosis**: larger positive signal.

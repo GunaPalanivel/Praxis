@@ -8,7 +8,7 @@ This documentation set describes the repository as it exists today:
 - Four implemented tasks: `single-service-alert`, `cascading-failure`, `ambiguous-incident`, and `memory-leak`
 - ASCII-normalized observation text for stable local console output
 - Centralized per-step reward engine in `server/reward.py`
-- Per-step rewards in `[0.001, 0.999]`
+- Per-step rewards in `[0.01, 0.99]`
 - Root-level baseline script `inference.py` with strict `[START]/[STEP]/[END]` output contract
 - Root-level `Dockerfile` for containerized local runs and HF Spaces deployment
 

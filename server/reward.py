@@ -5,7 +5,7 @@ Phase 6 introduces a single scoring module so scenario classes only emit
 semantic reward events (investigation, diagnosis, remediation, escalation)
 instead of carrying duplicated numeric constants.
 
-All returned rewards are clamped to a judge-safe open interval [0.001, 0.999].
+All returned rewards are clamped to a judge-safe open interval [0.01, 0.99].
 
 Calibration rationale (updated for difficulty-curve fix):
   - Easy (single-service-alert):
@@ -26,13 +26,13 @@ from dataclasses import dataclass
 from typing import Mapping
 
 
-MIN_REWARD = 0.001
-MAX_REWARD = 0.999
+MIN_REWARD = 0.01
+MAX_REWARD = 0.99
 
 
 def clamp_reward(value: float) -> float:
-    """Clamp score to the judge-safe open interval [0.001, 0.999]."""
-    return max(MIN_REWARD, min(MAX_REWARD, value))
+    """Clamp score to the judge-safe open interval [0.01, 0.99]."""
+    return max(MIN_REWARD, min(MAX_REWARD, float(value)))
 
 
 @dataclass(frozen=True)

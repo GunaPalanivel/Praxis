@@ -64,7 +64,7 @@ class BaseScenario(ABC):
     def __init__(self) -> None:
         # Episode instance state — reset each time
         self._step_count: int = 0
-        self._cumulative_reward: float = 0.001
+        self._cumulative_reward: float = 0.01
         self._incident_resolved: bool = False
         self._root_cause_identified: bool = False
         self._investigation_history: list[str] = []
@@ -81,7 +81,7 @@ class BaseScenario(ABC):
             episode_id: Unique identifier for this episode (provided by server)
         """
         self._step_count = 0
-        self._cumulative_reward = 0.001
+        self._cumulative_reward = 0.01
         self._incident_resolved = False
         self._root_cause_identified = False
         self._investigation_history = []
@@ -112,7 +112,7 @@ class BaseScenario(ABC):
         Implementation rules:
             - NEVER raise exceptions — return an error StepOutcome instead
             - NEVER use randomness — pure function over deterministic state
-                        - ALWAYS clamp reward to [0.001, 0.999] before returning
+            - ALWAYS clamp reward to [0.01, 0.99] before returning
             - Do not mutate self._step_count or cumulative reward here;
               PraxisEnvironment applies that bookkeeping after the outcome
               is returned.
@@ -174,7 +174,7 @@ class BaseScenario(ABC):
     @staticmethod
     def clamp_reward(reward: float) -> float:
         """Clamp reward to the judge-safe open interval (0, 1)."""
-        value = max(0.001, min(0.999, float(reward)))
+        value = max(0.01, min(0.99, float(reward)))
         # Defensive: ensure floating-point serialization cannot round to boundaries.
         if value <= 0.0:
             return math.nextafter(0.0, 1.0)

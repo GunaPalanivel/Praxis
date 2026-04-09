@@ -32,7 +32,7 @@ class StepResult:
 
     Mirrors the OpenEnv StepResult contract:
         observation:  The new PraxisObservation after the action
-        reward:       Per-step reward in [0.001, 0.999]
+        reward:       Per-step reward in [0.01, 0.99]
         done:         True if the episode has ended
         info:         Optional dict with extra debugging information
     """
@@ -142,7 +142,7 @@ class PraxisEnv:
             task_name=data["task_name"],
             incident_resolved=data.get("incident_resolved", False),
             root_cause_identified=data.get("root_cause_identified", False),
-            cumulative_reward=data.get("cumulative_reward", 0.001),
+            cumulative_reward=data.get("cumulative_reward", 0.01),
         )
 
     async def close(self) -> None:
