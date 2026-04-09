@@ -22,6 +22,7 @@ Extending Praxis with new scenarios:
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+import math
 from typing import Any
 
 from praxis_env.models import (
@@ -172,8 +173,14 @@ class BaseScenario(ABC):
 
     @staticmethod
     def clamp_reward(reward: float) -> float:
-        """Clamp reward to the judge-safe open interval [0.001, 0.999]."""
-        return max(0.001, min(0.999, reward))
+        """Clamp reward to the judge-safe open interval (0, 1)."""
+        value = max(0.001, min(0.999, float(reward)))
+        # Defensive: ensure floating-point serialization cannot round to boundaries.
+        if value <= 0.0:
+            return math.nextafter(0.0, 1.0)
+        if value >= 1.0:
+            return math.nextafter(1.0, 0.0)
+        return value
 
     def _score_event(
         self,

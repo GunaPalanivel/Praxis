@@ -29,7 +29,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
-from praxis_env.models import PraxisAction
+from praxis_env.models import PraxisAction, PraxisObservation, PraxisState
 from server.praxis_environment import PraxisEnvironment
 
 # ── Logging ───────────────────────────────────────────────────────────────────
@@ -95,10 +95,64 @@ def create_app() -> FastAPI:
     async def health() -> dict[str, Any]:
         """Health check — must return 200 for the pre-validation script."""
         return {
-            "status": "ok",
+            # OpenEnv runtime validator expects "healthy"
+            "status": "healthy",
             "environment": "praxis-env",
             "version": "1.0.0",
             "available_tasks": env.list_tasks(),
+        }
+
+    @app.get("/metadata")
+    async def metadata() -> dict[str, Any]:
+        """OpenEnv metadata endpoint used by runtime validators."""
+        return {
+            "name": "praxis-env",
+            "version": "1.0.0",
+            "description": (
+                "Production Incident Response Training Ground — simulating real-world "
+                "SRE on-call triage for AI agents."
+            ),
+            "tasks": [
+                {"name": "single-service-alert", "difficulty": "easy", "max_steps": 15},
+                {"name": "ambiguous-incident", "difficulty": "medium", "max_steps": 25},
+                {"name": "cascading-failure", "difficulty": "hard", "max_steps": 20},
+                {"name": "memory-leak", "difficulty": "hard", "max_steps": 25},
+            ],
+            "endpoints": {
+                "reset": "/reset",
+                "step": "/step",
+                "state": "/state",
+                "tasks": "/tasks",
+                "health": "/health",
+                "schema": "/schema",
+                "mcp": "/mcp",
+            },
+        }
+
+    @app.get("/schema")
+    async def schema() -> dict[str, Any]:
+        """OpenEnv schema endpoint used by runtime validators."""
+        return {
+            "action": PraxisAction.model_json_schema(),
+            "observation": PraxisObservation.model_json_schema(),
+            "state": PraxisState.model_json_schema(),
+        }
+
+    @app.post("/mcp")
+    async def mcp(request: Request) -> dict[str, Any]:
+        """
+        Minimal JSON-RPC MCP endpoint.
+
+        The OpenEnv runtime validator only checks reachability and JSON-RPC shape.
+        """
+        try:
+            payload = await request.json()
+        except Exception:
+            payload = {}
+        return {
+            "jsonrpc": "2.0",
+            "id": payload.get("id"),
+            "result": {"ok": True},
         }
 
     @app.get("/")

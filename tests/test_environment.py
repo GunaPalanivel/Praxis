@@ -171,3 +171,208 @@ class TestScenarioObservationContracts:
         observation = result["observation"]
         assert observation["alert_summary"].isascii()
         assert observation["investigation_result"].isascii()
+
+
+class TestEpisodeScoreBudget:
+    HIGH_REWARD_TRAJECTORIES = [
+        (
+            "single-service-alert",
+            [
+                "query_logs service=auth timerange=5m",
+                "query_logs service=api timerange=15m",
+                "query_logs service=database timerange=30m",
+                "check_metrics service=auth metric=connections",
+                "check_metrics service=database metric=connections",
+                "check_deps service=auth",
+                "check_deps service=api",
+                "check_config service=auth",
+                "check_config service=api",
+                "check_runbook service=auth",
+                "diagnose root_cause=bad_config",
+                "rollback_deploy service=auth",
+            ],
+            True,
+        ),
+        (
+            "ambiguous-incident",
+            [
+                "query_logs service=frontend timerange=10m",
+                "query_logs service=api timerange=10m",
+                "query_logs service=auth timerange=10m",
+                "query_logs service=search timerange=10m",
+                "query_logs service=dns-resolver timerange=30m",
+                "check_metrics service=dns-resolver metric=resolution_failures",
+                "check_metrics service=api metric=error_rate",
+                "check_metrics service=load-balancer metric=latency_p95",
+                "check_deps service=frontend",
+                "check_config service=dns-resolver",
+                "check_runbook service=dns-resolver",
+                "diagnose root_cause=dns_misconfiguration",
+                "restart_service service=dns-resolver",
+            ],
+            False,
+        ),
+        (
+            "memory-leak",
+            [
+                "query_logs service=worker timerange=10m",
+                "query_logs service=api timerange=10m",
+                "check_metrics service=worker metric=memory",
+                "check_metrics service=api metric=cpu",
+                "check_deps service=worker",
+                "check_config service=worker",
+                "check_runbook service=worker",
+                "diagnose root_cause=large_batch_size_oom",
+                "rollback_deploy service=worker",
+            ],
+            False,
+        ),
+        (
+            "cascading-failure",
+            [
+                "query_logs service=api timerange=10m",
+                "query_logs service=database timerange=15m",
+                "query_logs service=analytics timerange=15m",
+                "check_metrics service=database metric=connections",
+                "check_deps service=api",
+                "check_config service=database",
+                "check_config service=analytics",
+                "check_runbook service=database",
+                "diagnose root_cause=db_connection_pool_exhausted",
+                "kill_query service=database query_id=runaway_analytics",
+                "scale_resource service=database resource=connection_pool",
+            ],
+            False,
+        ),
+    ]
+
+    OPTIMAL_PATHS = [
+        (
+            "single-service-alert",
+            [
+                "query_logs service=auth timerange=5m",
+                "check_config service=auth",
+                "diagnose root_cause=bad_config",
+                "rollback_deploy service=auth",
+            ],
+            0.63,
+        ),
+        (
+            "ambiguous-incident",
+            [
+                "query_logs service=frontend timerange=10m",
+                "query_logs service=api timerange=10m",
+                "query_logs service=auth timerange=10m",
+                "check_deps service=frontend",
+                "check_metrics service=dns-resolver metric=resolution_failures",
+                "query_logs service=dns-resolver timerange=30m",
+                "check_config service=dns-resolver",
+                "diagnose root_cause=dns_misconfiguration",
+                "restart_service service=dns-resolver",
+            ],
+            0.71,
+        ),
+        (
+            "memory-leak",
+            [
+                "query_logs service=worker timerange=10m",
+                "check_metrics service=worker metric=memory",
+                "check_config service=worker",
+                "diagnose root_cause=large_batch_size_oom",
+                "rollback_deploy service=worker",
+            ],
+            0.475,
+        ),
+        (
+            "cascading-failure",
+            [
+                "query_logs service=api timerange=10m",
+                "check_deps service=api",
+                "check_metrics service=database metric=connections",
+                "query_logs service=database timerange=15m",
+                "diagnose root_cause=db_connection_pool_exhausted",
+                "kill_query service=database query_id=runaway_analytics",
+                "scale_resource service=database resource=connection_pool",
+            ],
+            0.458,
+        ),
+    ]
+
+    @staticmethod
+    def _run_commands(task_name, commands):
+        env = PraxisEnvironment()
+        env.reset(task_name=task_name)
+        rewards = []
+        last_result = None
+
+        for command in commands:
+            last_result = env.step(PraxisAction(command=command))
+            rewards.append(last_result["reward"])
+            if last_result["done"]:
+                break
+
+        return env, rewards, last_result
+
+    @pytest.mark.parametrize(
+        ("task_name", "commands", "expect_score_cap"),
+        HIGH_REWARD_TRAJECTORIES,
+    )
+    def test_high_reward_trajectories_keep_emitted_total_below_one(
+        self,
+        task_name,
+        commands,
+        expect_score_cap,
+    ):
+        env, rewards, last_result = self._run_commands(task_name, commands)
+
+        assert rewards
+        assert all(0.0 < reward < 1.0 for reward in rewards)
+        assert sum(rewards) < 1.0
+
+        expected_cumulative = min(0.999, 0.001 + sum(rewards))
+        assert env.state().cumulative_reward == pytest.approx(expected_cumulative)
+
+        if expect_score_cap:
+            assert last_result["done"] is True
+            assert last_result["info"].get("score_cap_reached") is True
+
+    @pytest.mark.parametrize(("task_name", "commands", "expected_total"), OPTIMAL_PATHS)
+    def test_optimal_paths_keep_existing_environment_totals(
+        self,
+        task_name,
+        commands,
+        expected_total,
+    ):
+        _, rewards, last_result = self._run_commands(task_name, commands)
+
+        assert sum(rewards) == pytest.approx(expected_total, abs=1e-6)
+        assert last_result["info"].get("score_cap_reached") is not True
+
+    def test_step_after_score_cap_short_circuits_with_floor_reward(self):
+        task_name = "single-service-alert"
+        commands = [
+            "query_logs service=auth timerange=5m",
+            "query_logs service=api timerange=15m",
+            "query_logs service=database timerange=30m",
+            "check_metrics service=auth metric=connections",
+            "check_metrics service=database metric=connections",
+            "check_deps service=auth",
+            "check_deps service=api",
+            "check_config service=auth",
+            "check_config service=api",
+            "check_runbook service=auth",
+            "diagnose root_cause=bad_config",
+            "rollback_deploy service=auth",
+        ]
+
+        env, _, last_result = self._run_commands(task_name, commands)
+        assert last_result["info"].get("score_cap_reached") is True
+        assert env.state().cumulative_reward == pytest.approx(0.999)
+
+        repeated = env.step(PraxisAction(command="query_logs service=auth timerange=5m"))
+
+        assert repeated["reward"] == pytest.approx(0.001)
+        assert repeated["done"] is True
+        assert repeated["info"]["error"] == "episode_score_cap_reached"
+        assert repeated["info"]["score_cap_reached"] is True
+        assert env.state().cumulative_reward == pytest.approx(0.999)

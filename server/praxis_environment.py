@@ -24,6 +24,7 @@ Design choices:
 from __future__ import annotations
 
 import logging
+import math
 from typing import Any
 
 from praxis_env.models import (
@@ -35,6 +36,7 @@ from praxis_env.models import (
 from praxis_env.scenarios import get_scenario, list_tasks
 from praxis_env.scenarios.base import BaseScenario, StepOutcome
 from server.command_parser import parse_command
+from server.reward import MAX_REWARD, MIN_REWARD
 
 logger = logging.getLogger(__name__)
 
@@ -107,6 +109,19 @@ class PraxisEnvironment:
         if self._scenario is None:
             raise RuntimeError("step() called before reset(). Call reset() first.")
 
+        if self._scenario.clamp_reward(self._scenario._cumulative_reward) >= MAX_REWARD:
+            obs = self._scenario.get_observation()
+            obs.step_number = self._scenario._step_count
+            return {
+                "observation": self._obs_to_dict(obs),
+                "reward": MIN_REWARD,
+                "done": True,
+                "info": {
+                    "error": "episode_score_cap_reached",
+                    "score_cap_reached": True,
+                },
+            }
+
         logger.debug("step() → command=%r", action.command)
 
         # The environment owns step_count and cumulative reward bookkeeping.
@@ -116,33 +131,59 @@ class PraxisEnvironment:
 
         # Delegate to active scenario
         outcome: StepOutcome = self._scenario.step(parsed)
-        step_reward = self._scenario.clamp_reward(outcome.reward)
+        raw_step_reward = self._scenario.clamp_reward(outcome.reward)
+        current_cumulative_reward = self._scenario.clamp_reward(
+            self._scenario._cumulative_reward
+        )
+
+        # The environment is the final authority for emitted rewards: once the
+        # episode budget is nearly exhausted, trim the outgoing reward so the
+        # cumulative task score exposed to validators remains strictly < 1.0.
+        remaining_budget = max(0.0, MAX_REWARD - current_cumulative_reward)
+        step_reward = min(raw_step_reward, remaining_budget)
+        # Guard against rounding-to-zero edge cases: if there's still some
+        # remaining budget, always emit a strictly-positive reward.
+        if 0.0 < remaining_budget and step_reward <= 0.0:
+            step_reward = remaining_budget
+        # Ensure emitted reward is strictly within (0, 1) even after any
+        # downstream float formatting/serialization.
+        if step_reward <= 0.0:
+            step_reward = math.nextafter(0.0, 1.0)
+        elif step_reward >= 1.0:
+            step_reward = math.nextafter(1.0, 0.0)
+        next_cumulative_reward = self._scenario.clamp_reward(
+            current_cumulative_reward + step_reward
+        )
+        score_cap_reached = next_cumulative_reward >= MAX_REWARD
 
         # Update scenario's investigation result for next observation
         self._scenario._last_investigation_result = outcome.investigation_result
         self._scenario._step_count += 1
-        self._scenario._cumulative_reward = self._scenario.clamp_reward(
-            self._scenario._cumulative_reward + step_reward
-        )
+        self._scenario._cumulative_reward = next_cumulative_reward
 
         # Build the next observation
         obs = self._scenario.get_observation()
         # Override step_number to reflect the step just taken
         obs.step_number = self._scenario._step_count
 
+        info = dict(outcome.info or {})
+        if score_cap_reached:
+            info["score_cap_reached"] = True
+
         logger.debug(
             "step() → reward=%.3f done=%s step=%d",
             step_reward,
-            outcome.done,
+            outcome.done or self._scenario.is_done() or score_cap_reached,
             obs.step_number,
         )
 
-        return {
+        result = {
             "observation": self._obs_to_dict(obs),
             "reward": step_reward,
-            "done": outcome.done or self._scenario.is_done(),
-            "info": outcome.info,
+            "done": outcome.done or self._scenario.is_done() or score_cap_reached,
+            "info": info,
         }
+        return result
 
     def state(self) -> PraxisState:
         """
