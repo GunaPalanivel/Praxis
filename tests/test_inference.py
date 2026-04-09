@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import re
 
+import pytest
+
 import inference
 
 
@@ -64,6 +66,18 @@ def test_render_end_line_contract_and_rewards_csv():
 def test_render_end_line_allows_empty_rewards_list():
     line = inference.render_end_line(success=False, steps=0, rewards=[])
     assert line == "[END] success=false steps=0 rewards="
+
+
+def test_clamp_output_reward_uses_printable_safe_bounds():
+    assert inference.clamp_output_reward(-1.0) == pytest.approx(0.01)
+    assert inference.clamp_output_reward(0.001) == pytest.approx(0.01)
+    assert inference.clamp_output_reward(0.55) == pytest.approx(0.55)
+    assert inference.clamp_output_reward(0.999) == pytest.approx(0.99)
+    assert inference.clamp_output_reward(2.0) == pytest.approx(0.99)
+
+
+def test_format_rewards_csv_printable_safe_bounds():
+    assert inference.format_rewards_csv([0.01, 0.99]) == "0.01,0.99"
 
 
 def test_parse_task_list_uses_defaults_for_empty_input():

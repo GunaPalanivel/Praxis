@@ -81,6 +81,8 @@ TEMPERATURE = float(os.getenv("TEMPERATURE", "0"))
 MAX_TOKENS = int(os.getenv("MAX_TOKENS", "96"))
 SUCCESS_SCORE_THRESHOLD = float(os.getenv("SUCCESS_SCORE_THRESHOLD", "0.10"))
 MAX_STEPS_CAP = int(os.getenv("MAX_STEPS_CAP", "25"))
+OUTPUT_MIN_REWARD = 0.01
+OUTPUT_MAX_REWARD = 0.99
 
 
 SYSTEM_PROMPT = (
@@ -125,6 +127,11 @@ def format_error(error: str | None) -> str:
 
 def format_rewards_csv(rewards: list[float]) -> str:
     return ",".join(f"{float(r):.2f}" for r in rewards)
+
+
+def clamp_output_reward(reward: float) -> float:
+    """Clamp inference-emitted rewards to printable-safe bounds."""
+    return max(OUTPUT_MIN_REWARD, min(OUTPUT_MAX_REWARD, float(reward)))
 
 
 def render_start_line(task: str, env_name: str, model_name: str) -> str:
@@ -327,7 +334,7 @@ async def run_episode(task_name: str, client: OpenAI | None) -> EpisodeResult:
 
             try:
                 result = await env.step(PraxisAction(command=command))
-                reward = max(0.0, min(1.0, float(result.reward)))
+                reward = clamp_output_reward(result.reward)
                 done = bool(result.done)
 
                 info = result.info or {}
@@ -354,11 +361,11 @@ async def run_episode(task_name: str, client: OpenAI | None) -> EpisodeResult:
                     emitted_step_numbers,
                     step=step,
                     action=command,
-                    reward=0.0,
+                    reward=OUTPUT_MIN_REWARD,
                     done=False,
                     error=str(exc),
                 )
-                rewards.append(0.0)
+                rewards.append(OUTPUT_MIN_REWARD)
                 steps_taken = step
                 break
     except Exception as exc:
