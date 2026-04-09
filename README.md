@@ -141,49 +141,15 @@ flowchart LR
 
 ## Baseline Scores
 
-### Inference Script
+Model: `Qwen/Qwen2.5-72B-Instruct`  
+Endpoint: `https://gp5901-praxis.hf.space`
 
-The judge-facing baseline script is `inference.py` at repository root.
-
-Required environment variables for model-backed runs:
-
-- `API_BASE_URL`
-- `MODEL_NAME`
-- `HF_TOKEN`
-
-Useful runtime variables:
-
-- `PRAXIS_URL` (default `http://127.0.0.1:7860`)
-- `PRAXIS_TASKS` (optional task subset)
-
-Run:
-
-```bash
-python inference.py
-```
-
-Structured stdout contract:
-
-```text
-[START] task=<task_name> env=praxis model=<model_name>
-[STEP] step=<n> action=<action_str> reward=<0.00> done=<true|false> error=<msg|null>
-[END] success=<true|false> steps=<n> rewards=<r1,r2,...,rn>
-```
-
-### Latest Deterministic Optimal Path Scores
-
-Reference scores from deterministic scenario tests (`pytest tests/ -v`):
-
-| Task                   | Optimal Steps | Optimal Path Score | Expected Live Model Range |
-| ---------------------- | ------------- | ------------------ | ------------------------- |
-| `single-service-alert` | 4             | 0.63               | 0.55 - 0.70               |
-| `ambiguous-incident`   | 9             | 0.71               | 0.30 - 0.55               |
-| `cascading-failure`    | 7             | 0.458              | 0.20 - 0.45               |
-| `memory-leak`          | 5             | 0.475              | 0.20 - 0.42               |
-
-The calibrated progression is verified as Easy > Medium > Hard in expected live model scores. Deterministic optimal-path scores represent scenario ceilings, while live model scores are lower due to exploration and evidence-gating penalties.
-
-Fallback-only runs (no model token configured) are deterministic and may differ from live model-backed scores.
+| Task | Difficulty | Steps | Score |
+|---|---|---|---|
+| single-service-alert | Easy | 4 | 0.630 |
+| ambiguous-incident | Medium | - | 0.551 |
+| cascading-failure | Hard | 7 | 0.458 |
+| memory-leak | Medium-Hard | - | 0.475 |
 
 ## Development
 
