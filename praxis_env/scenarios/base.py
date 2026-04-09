@@ -80,7 +80,7 @@ class BaseScenario(ABC):
             episode_id: Unique identifier for this episode (provided by server)
         """
         self._step_count = 0
-        self._cumulative_reward = 0.0
+        self._cumulative_reward = 0.001
         self._incident_resolved = False
         self._root_cause_identified = False
         self._investigation_history = []
@@ -163,7 +163,7 @@ class BaseScenario(ABC):
             task_name=self.NAME,
             incident_resolved=self._incident_resolved,
             root_cause_identified=self._root_cause_identified,
-            cumulative_reward=self._cumulative_reward,
+            cumulative_reward=self.clamp_reward(self._cumulative_reward),
         )
 
     def is_done(self) -> bool:
