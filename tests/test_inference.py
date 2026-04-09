@@ -131,3 +131,45 @@ def test_step_line_matches_contract_regex():
         r"^\[STEP\] step=\d+ action=.+ reward=\d+\.\d{2} done=(true|false) error=(.+)$"
     )
     assert pattern.match(line)
+
+
+def test_emit_step_line_once_emits_on_first_use(capsys):
+    emitted: set[int] = set()
+    did_emit = inference.emit_step_line_once(
+        emitted,
+        step=2,
+        action="check_deps service=api",
+        reward=0.02,
+        done=False,
+        error=None,
+    )
+
+    captured = capsys.readouterr()
+    assert did_emit is True
+    assert "[STEP] step=2 action=check_deps service=api reward=0.02 done=false error=null" in captured.out
+    assert emitted == {2}
+
+
+def test_emit_step_line_once_skips_duplicate_step(capsys):
+    emitted: set[int] = set()
+    first = inference.emit_step_line_once(
+        emitted,
+        step=2,
+        action="check_deps service=api",
+        reward=0.02,
+        done=False,
+        error=None,
+    )
+    second = inference.emit_step_line_once(
+        emitted,
+        step=2,
+        action="check_deps service=api",
+        reward=0.02,
+        done=False,
+        error=None,
+    )
+
+    captured = capsys.readouterr()
+    assert first is True
+    assert second is False
+    assert captured.out.count("[STEP] step=2") == 1

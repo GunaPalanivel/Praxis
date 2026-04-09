@@ -152,6 +152,33 @@ def render_end_line(success: bool, steps: int, rewards: list[float]) -> str:
     )
 
 
+def emit_step_line_once(
+    emitted_steps: set[int],
+    *,
+    step: int,
+    action: str,
+    reward: float,
+    done: bool,
+    error: str | None,
+) -> bool:
+    """Emit a STEP log line once per unique step number."""
+    if step in emitted_steps:
+        return False
+
+    print(
+        render_step_line(
+            step=step,
+            action=action,
+            reward=reward,
+            done=done,
+            error=error,
+        ),
+        flush=True,
+    )
+    emitted_steps.add(step)
+    return True
+
+
 def parse_task_list(raw: str | None) -> list[str]:
     if not raw or not raw.strip():
         return list(DEFAULT_TASKS)
@@ -270,6 +297,7 @@ async def run_episode(task_name: str, client: OpenAI | None) -> EpisodeResult:
     encountered_fatal = False
     history: list[str] = []
     use_model = True
+    emitted_step_numbers: set[int] = set()
 
     print(render_start_line(task_name, BENCHMARK_NAME, MODEL_NAME), flush=True)
 
@@ -306,15 +334,13 @@ async def run_episode(task_name: str, client: OpenAI | None) -> EpisodeResult:
                 if isinstance(info, dict) and info.get("error"):
                     error_value = str(info.get("error"))
 
-                print(
-                    render_step_line(
-                        step=step,
-                        action=command,
-                        reward=reward,
-                        done=done,
-                        error=error_value,
-                    ),
-                    flush=True,
+                emit_step_line_once(
+                    emitted_step_numbers,
+                    step=step,
+                    action=command,
+                    reward=reward,
+                    done=done,
+                    error=error_value,
                 )
                 rewards.append(reward)
                 steps_taken = step
@@ -324,15 +350,13 @@ async def run_episode(task_name: str, client: OpenAI | None) -> EpisodeResult:
                     break
             except Exception as exc:
                 encountered_fatal = True
-                print(
-                    render_step_line(
-                        step=step,
-                        action=command,
-                        reward=0.0,
-                        done=False,
-                        error=str(exc),
-                    ),
-                    flush=True,
+                emit_step_line_once(
+                    emitted_step_numbers,
+                    step=step,
+                    action=command,
+                    reward=0.0,
+                    done=False,
+                    error=str(exc),
                 )
                 rewards.append(0.0)
                 steps_taken = step
