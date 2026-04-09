@@ -102,21 +102,22 @@ Praxis is deterministic: the same action sequence yields the same outputs and re
 | Task                   | Difficulty | Severity | Max Steps | Scenario Summary                                                          | Optimal Path Score |
 | ---------------------- | ---------- | -------- | --------- | ------------------------------------------------------------------------- | ------------------ |
 | `single-service-alert` | Easy       | P2       | 15        | Auth fails after a bad deployment config typo in DB host settings         | 0.63               |
-| `cascading-failure`    | Medium     | P1       | 20        | Runaway analytics query exhausts DB connection pool and cascades failures | 0.485              |
-| `ambiguous-incident`   | Hard       | P2       | 25        | Intermittent multi-service failures caused by DNS misconfiguration        | 0.753              |
+| `ambiguous-incident`   | Medium     | P2       | 25        | Intermittent multi-service failures caused by DNS misconfiguration        | 0.71               |
+| `cascading-failure`    | Hard       | P1       | 20        | Runaway analytics query exhausts DB connection pool and cascades failures | 0.458              |
+| `memory-leak`          | Hard       | P2       | 25        | Worker OOM crashes from oversized batch processing configuration          | 0.475              |
 
-Difficulty progression is intentional: isolated service incident -> shared dependency cascade -> ambiguous cross-service failure with evidence gating. The optimal path score decreases with difficulty, ensuring a clear discriminative gradient for model evaluation.
+Difficulty progression is intentional: isolated service incident (easy) -> ambiguous cross-service investigation with infra evidence gating (medium) -> high-pressure remediation incidents (hard).
 
 ## Reward Function
 
-Rewards are per-step and clamped to `[0.0, 1.0]`.
+Rewards are per-step and clamped to `[0.001, 0.999]`.
 
 - **Investigation actions**: small positive signal when evidence is relevant.
 - **Correct diagnosis**: larger positive signal.
 - **Correct remediation or evidence-backed escalation**: highest positive signal.
-- **Wrong diagnosis, wrong remediation, or premature escalation**: no credit.
+- **Wrong diagnosis, wrong remediation, or premature escalation**: near-zero credit after penalties.
 - **Duplicate actions**: penalized (50% reduction).
-- **Step cost**: medium and hard tasks apply a small per-step cost (0.005 and 0.003 respectively) to discourage aimless exploration.
+- **Step cost**: medium applies a 0.003 per-step cost; hard tasks use stronger pressure (0.006 for cascading-failure, 0.005 for memory-leak).
 - **Runbook usage**: agents that consult institutional runbooks (`check_runbook`) receive a small bonus.
 
 Centralized scoring lives in `server/reward.py` and is shared across all scenarios.
@@ -176,10 +177,11 @@ Reference scores from deterministic scenario tests (`pytest tests/ -v`):
 | Task                   | Optimal Steps | Optimal Path Score | Expected Live Model Range |
 | ---------------------- | ------------- | ------------------ | ------------------------- |
 | `single-service-alert` | 4             | 0.63               | 0.55 - 0.70               |
-| `cascading-failure`    | 7             | 0.485              | 0.30 - 0.52               |
-| `ambiguous-incident`   | 9             | 0.753              | 0.15 - 0.40               |
+| `ambiguous-incident`   | 9             | 0.71               | 0.30 - 0.55               |
+| `cascading-failure`    | 7             | 0.458              | 0.20 - 0.45               |
+| `memory-leak`          | 5             | 0.475              | 0.20 - 0.42               |
 
-The difficulty progression is verified: Easy > Medium > Hard in expected live model scores. The optimal path scores reflect the deterministic ceiling, while live model scores are lower due to exploration, wrong diagnoses, and step cost accumulation.
+The calibrated progression is verified as Easy > Medium > Hard in expected live model scores. Deterministic optimal-path scores represent scenario ceilings, while live model scores are lower due to exploration and evidence-gating penalties.
 
 Fallback-only runs (no model token configured) are deterministic and may differ from live model-backed scores.
 

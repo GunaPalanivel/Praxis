@@ -35,7 +35,7 @@ class TestOptimalPath:
         "kill_query service=database query_id=runaway_analytics",
         "scale_resource service=database resource=connection_pool",
     ]
-    EXPECTED_REWARDS = [0.025, 0.025, 0.075, 0.045, 0.145, 0.095, 0.075]
+    EXPECTED_REWARDS = [0.024, 0.024, 0.074, 0.044, 0.134, 0.084, 0.074]
 
     def test_optimal_path_rewards(self):
         scenario = make_scenario()
@@ -46,7 +46,7 @@ class TestOptimalPath:
     def test_optimal_path_total_score(self):
         scenario = make_scenario()
         total = sum(step_cmd(scenario, cmd).reward for cmd in self.OPTIMAL_COMMANDS)
-        assert total == pytest.approx(0.485, abs=1e-6)
+        assert total == pytest.approx(0.458, abs=1e-6)
 
     def test_optimal_path_done_only_after_second_remediation(self):
         scenario = make_scenario()
@@ -68,7 +68,7 @@ class TestResolutionRules:
             scenario,
             "kill_query service=database query_id=runaway_analytics",
         )
-        assert outcome.reward == pytest.approx(0.095)
+        assert outcome.reward == pytest.approx(0.084)
         assert outcome.done is False
         assert outcome.incident_resolved is False
 
@@ -78,7 +78,7 @@ class TestResolutionRules:
             scenario,
             "scale_resource service=database resource=connection_pool",
         )
-        assert outcome.reward == pytest.approx(0.075)
+        assert outcome.reward == pytest.approx(0.074)
         assert outcome.done is False
         assert outcome.incident_resolved is False
 
@@ -91,14 +91,14 @@ class TestResolutionRules:
             scenario,
             "escalate reason=db pool exhausted by analytics query",
         )
-        assert outcome.reward == pytest.approx(0.095)
+        assert outcome.reward == pytest.approx(0.084)
         assert outcome.done is True
         assert outcome.incident_resolved is True
 
     def test_escalate_without_enough_evidence_is_penalized(self):
         scenario = make_scenario()
         outcome = step_cmd(scenario, "escalate reason=need help")
-        assert outcome.reward == pytest.approx(0.0)
+        assert outcome.reward == pytest.approx(0.001)
         assert outcome.done is True
         assert outcome.incident_resolved is False
 
@@ -107,25 +107,25 @@ class TestRedHerrings:
     def test_api_deployment_diagnosis_gets_wrong_diagnosis_penalty(self):
         scenario = make_scenario()
         outcome = step_cmd(scenario, "diagnose root_cause=api_deployment")
-        assert outcome.reward == pytest.approx(0.0)
+        assert outcome.reward == pytest.approx(0.001)
         assert "deployment" in outcome.investigation_result.lower()
 
     def test_auth_memory_diagnosis_gets_wrong_diagnosis_penalty(self):
         scenario = make_scenario()
         outcome = step_cmd(scenario, "diagnose root_cause=auth_memory")
-        assert outcome.reward == pytest.approx(0.0)
+        assert outcome.reward == pytest.approx(0.001)
         assert "memory" in outcome.investigation_result.lower()
 
     def test_restarting_auth_treats_symptom_not_root_cause(self):
         scenario = make_scenario()
         outcome = step_cmd(scenario, "restart_service service=auth")
-        assert outcome.reward == pytest.approx(0.0)
+        assert outcome.reward == pytest.approx(0.001)
         assert outcome.incident_resolved is False
 
     def test_rolling_back_api_deploy_does_not_fix_incident(self):
         scenario = make_scenario()
         outcome = step_cmd(scenario, "rollback_deploy service=api")
-        assert outcome.reward == pytest.approx(0.0)
+        assert outcome.reward == pytest.approx(0.001)
         assert outcome.incident_resolved is False
 
     def test_red_herring_path_scores_much_lower_than_optimal(self):
@@ -138,7 +138,7 @@ class TestRedHerrings:
         ]
         wrong_total = sum(step_cmd(scenario, cmd).reward for cmd in wrong_path)
         assert wrong_total < 0.10
-        assert 0.485 - wrong_total >= 0.30
+        assert 0.458 - wrong_total >= 0.30
 
 
 class TestDeterminism:
@@ -198,7 +198,7 @@ class TestRewardBounds:
     def test_reward_in_bounds(self, cmd):
         scenario = make_scenario()
         outcome = step_cmd(scenario, cmd)
-        assert 0.0 <= outcome.reward <= 1.0
+        assert 0.001 <= outcome.reward <= 0.999
 
     @pytest.mark.parametrize("cmd", REPRESENTATIVE_COMMANDS)
     def test_never_raises(self, cmd):

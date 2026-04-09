@@ -1,7 +1,7 @@
 """
 praxis_env.scenarios.ambiguous_incident - Task 3: Ambiguous Incident.
 
-Difficulty: Hard
+Difficulty: Medium
 Severity: P2
 Max Steps: 25
 
@@ -17,6 +17,9 @@ Agent must:
   2. Inspect infrastructure signals, especially DNS resolution failures.
   3. Diagnose the issue as a DNS misconfiguration.
   4. Resolve it by restarting dns-resolver or escalating with evidence.
+
+Calibrated optimal path (9 steps): ~0.71
+Calibrated fallback path (6 steps): ~0.551
 
 Evidence rules:
     - Diagnosis is only rewarded after at least 3 app services have been

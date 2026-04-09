@@ -54,7 +54,12 @@ Expected task output:
 
 ```json
 {
-  "tasks": ["ambiguous-incident", "cascading-failure", "single-service-alert"]
+  "tasks": [
+    "ambiguous-incident",
+    "cascading-failure",
+    "memory-leak",
+    "single-service-alert"
+  ]
 }
 ```
 
@@ -109,7 +114,7 @@ pytest tests/ -v --tb=short
 Focused validation for the current implemented tasks:
 
 ```bash
-pytest tests/test_task1_single_service_alert.py tests/test_task2_cascading_failure.py tests/test_task3_ambiguous_incident.py -v
+pytest tests/test_task1_single_service_alert.py tests/test_task2_cascading_failure.py tests/test_task3_ambiguous_incident.py tests/test_task4_memory_leak.py -v
 ```
 
 Contract-focused baseline inference tests:

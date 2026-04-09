@@ -111,7 +111,7 @@ class BaseScenario(ABC):
         Implementation rules:
             - NEVER raise exceptions — return an error StepOutcome instead
             - NEVER use randomness — pure function over deterministic state
-                        - ALWAYS clamp reward to [0.0, 1.0] before returning
+                        - ALWAYS clamp reward to [0.001, 0.999] before returning
             - Do not mutate self._step_count or cumulative reward here;
               PraxisEnvironment applies that bookkeeping after the outcome
               is returned.
@@ -172,8 +172,8 @@ class BaseScenario(ABC):
 
     @staticmethod
     def clamp_reward(reward: float) -> float:
-        """Clamp reward to [0.0, 1.0] for judging-contract compliance."""
-        return max(0.0, min(1.0, reward))
+        """Clamp reward to judge-safe bounds while staying inside [0.0, 1.0]."""
+        return max(0.001, min(0.999, reward))
 
     def _score_event(
         self,

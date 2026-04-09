@@ -1,7 +1,7 @@
 """
 praxis_env.scenarios.cascading_failure — Task 2: Cascading Failure.
 
-Difficulty: Medium
+Difficulty: Hard
 Severity: P1
 Max Steps: 20
 
@@ -24,18 +24,18 @@ Red herrings (by design):
   4. Notification service deploy at 14:35 — suspicious timing but
      notification errors are downstream of DB pool exhaustion.
 
-Optimal path (7 steps, score ~ 0.52):
-  1. query_logs service=api timerange=10m          -> 503s citing DB timeout    (+0.03)
-  2. check_deps service=api                        -> api->database dependency  (+0.03)
-  3. check_metrics service=database metric=connections -> pool 100/100!         (+0.08)
-  4. query_logs service=database timerange=15m     -> slow query from analytics (+0.05)
-  5. diagnose root_cause=db_connection_pool_exhausted -> CORRECT               (+0.15)
-  6. kill_query service=database query_id=runaway_analytics                    (+0.10)
-  7. scale_resource service=database resource=connection_pool                  (+0.08)
-                                                                      Total:   ~0.52
+Optimal path (7 steps, score ~ 0.458):
+    1. query_logs service=api timerange=10m          -> 503s citing DB timeout    (+0.024)
+    2. check_deps service=api                        -> api->database dependency  (+0.024)
+    3. check_metrics service=database metric=connections -> pool 100/100!         (+0.074)
+    4. query_logs service=database timerange=15m     -> slow query from analytics (+0.044)
+    5. diagnose root_cause=db_connection_pool_exhausted -> CORRECT               (+0.134)
+    6. kill_query service=database query_id=runaway_analytics                    (+0.084)
+    7. scale_resource service=database resource=connection_pool                  (+0.074)
+                                                                                                                                            Total:   ~0.458
 
 Alternative valid ending:
-  escalate with >=3 investigations -> +0.10
+    escalate with >=3 investigations -> +0.084
 """
 
 from __future__ import annotations

@@ -12,6 +12,7 @@ import pytest
 from praxis_env.models import PraxisAction
 from praxis_env.scenarios.ambiguous_incident import AmbiguousIncidentScenario
 from praxis_env.scenarios.cascading_failure import CascadingFailureScenario
+from praxis_env.scenarios.memory_leak_scenario import MemoryLeakScenario
 from praxis_env.scenarios.single_service_alert import SingleServiceAlertScenario
 from server.command_parser import parse_command
 from server.praxis_environment import PraxisEnvironment
@@ -75,6 +76,16 @@ DETERMINISTIC_CASES = [
             "check_config service=dns-resolver",
             "diagnose root_cause=dns_misconfiguration",
             "restart_service service=dns-resolver",
+        ],
+    ),
+    (
+        MemoryLeakScenario,
+        [
+            "query_logs service=worker timerange=10m",
+            "check_metrics service=worker metric=memory",
+            "check_config service=worker",
+            "diagnose root_cause=large_batch_size_oom",
+            "rollback_deploy service=worker",
         ],
     ),
 ]
@@ -146,6 +157,23 @@ QUALITY_CASES = [
         ],
         0.40,
     ),
+    (
+        MemoryLeakScenario,
+        [
+            "query_logs service=worker timerange=10m",
+            "check_metrics service=worker metric=memory",
+            "check_config service=worker",
+            "diagnose root_cause=large_batch_size_oom",
+            "rollback_deploy service=worker",
+        ],
+        [
+            "query_logs service=api timerange=10m",
+            "diagnose root_cause=db_timeout",
+            "restart_service service=worker",
+            "escalate reason=need help",
+        ],
+        0.35,
+    ),
 ]
 
 
@@ -188,13 +216,22 @@ def test_better_path_scores_higher_than_naive_path(scenario_cls, optimal, naive,
                 "escalate reason=dns evidence gathered",
             ],
         ),
+        (
+            "memory-leak",
+            [
+                "query_logs service=worker timerange=10m",
+                "check_metrics service=worker metric=memory",
+                "diagnose root_cause=large_batch_size_oom",
+                "rollback_deploy service=worker",
+            ],
+        ),
     ],
 )
 def test_environment_path_rewards_stay_in_bounds(task_name, commands):
     rewards = run_environment_path(task_name, commands)
     assert rewards, "Expected at least one reward value"
     for reward in rewards:
-        assert 0.0 <= reward <= 1.0
+        assert 0.001 <= reward <= 0.999
 
 
 @pytest.mark.parametrize(
@@ -203,6 +240,7 @@ def test_environment_path_rewards_stay_in_bounds(task_name, commands):
         ("single-service-alert", SingleServiceAlertScenario.MAX_STEPS),
         ("cascading-failure", CascadingFailureScenario.MAX_STEPS),
         ("ambiguous-incident", AmbiguousIncidentScenario.MAX_STEPS),
+        ("memory-leak", MemoryLeakScenario.MAX_STEPS),
     ],
 )
 def test_environment_terminates_when_max_steps_reached(task_name, max_steps):
@@ -215,7 +253,7 @@ def test_environment_terminates_when_max_steps_reached(task_name, max_steps):
 
     assert result is not None
     assert result["done"] is True
-    assert 0.0 <= result["reward"] <= 1.0
+    assert 0.001 <= result["reward"] <= 0.999
 
     state = env.state()
     assert state.step_count == max_steps

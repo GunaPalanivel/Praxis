@@ -11,9 +11,9 @@ from server.reward import RewardEngine, RewardPolicy, clamp_reward
 
 
 def test_clamp_reward_bounds():
-    assert clamp_reward(-0.5) == pytest.approx(0.0)
+    assert clamp_reward(-0.5) == pytest.approx(0.001)
     assert clamp_reward(0.25) == pytest.approx(0.25)
-    assert clamp_reward(1.5) == pytest.approx(1.0)
+    assert clamp_reward(1.5) == pytest.approx(0.999)
 
 
 def test_known_event_value_for_single_service_diagnosis():
@@ -33,7 +33,7 @@ def test_duplicate_investigation_applies_redundancy_penalty():
         event="investigation.query_logs.auth",
         duplicate=True,
     )
-    assert result.reward == pytest.approx(0.0)
+    assert result.reward == pytest.approx(0.001)
     assert result.breakdown.investigation_reward == pytest.approx(0.0)
     assert result.breakdown.redundancy_penalty == pytest.approx(-0.02)
 
@@ -45,7 +45,7 @@ def test_premature_penalty_is_applied_and_clamped():
         event="escalation.no_evidence",
         premature=True,
     )
-    assert result.reward == pytest.approx(0.0)
+    assert result.reward == pytest.approx(0.001)
     assert result.breakdown.premature_penalty == pytest.approx(-0.05)
 
 
@@ -56,7 +56,7 @@ def test_destructive_penalty_is_applied_and_clamped():
         event="remediation.wrong",
         destructive=True,
     )
-    assert result.reward == pytest.approx(0.0)
+    assert result.reward == pytest.approx(0.001)
     assert result.breakdown.destructive_penalty == pytest.approx(-0.15)
 
 
@@ -119,5 +119,5 @@ def test_clamp_upper_bound_with_large_event_reward():
     engine = RewardEngine(policies={"custom": policy})
 
     result = engine.score(task_name="custom", event="diagnosis.correct")
-    assert result.reward == pytest.approx(1.0)
+    assert result.reward == pytest.approx(0.999)
     assert result.breakdown.total_unclamped == pytest.approx(1.25)

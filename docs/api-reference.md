@@ -18,7 +18,7 @@ Notes about the current contract:
 
 - `alert_summary` and `investigation_result` are ASCII-normalized text payloads.
 - `services_affected` is an array of service names with non-healthy status.
-- Per-step `reward` is centrally computed and bounded to `[0.0, 1.0]`.
+- Per-step `reward` is centrally computed and bounded to `[0.001, 0.999]`.
 
 ---
 
@@ -40,9 +40,9 @@ The request body is optional. All three forms below are valid:
 }
 ```
 
-| Field       | Type   | Default                  | Current values                                                             |
-| ----------- | ------ | ------------------------ | -------------------------------------------------------------------------- |
-| `task_name` | string | `"single-service-alert"` | `"single-service-alert"`, `"cascading-failure"`, or `"ambiguous-incident"` |
+| Field       | Type   | Default                  | Current values                                                                              |
+| ----------- | ------ | ------------------------ | ------------------------------------------------------------------------------------------- |
+| `task_name` | string | `"single-service-alert"` | `"single-service-alert"`, `"ambiguous-incident"`, `"cascading-failure"`, or `"memory-leak"` |
 
 ### Response `200 OK`
 
@@ -141,7 +141,7 @@ You must call `/reset` first.
 | Field         | Type    | Description                           |
 | ------------- | ------- | ------------------------------------- |
 | `observation` | object  | The new observation after the command |
-| `reward`      | float   | Per-step reward in `[0.0, 1.0]`       |
+| `reward`      | float   | Per-step reward in `[0.001, 0.999]`   |
 | `done`        | boolean | `true` when the episode has ended     |
 | `info`        | object  | Optional debug metadata               |
 
@@ -190,7 +190,12 @@ List all currently registered task IDs.
 
 ```json
 {
-  "tasks": ["ambiguous-incident", "cascading-failure", "single-service-alert"]
+  "tasks": [
+    "ambiguous-incident",
+    "cascading-failure",
+    "memory-leak",
+    "single-service-alert"
+  ]
 }
 ```
 
@@ -210,6 +215,7 @@ Basic health check used for local verification.
   "available_tasks": [
     "ambiguous-incident",
     "cascading-failure",
+    "memory-leak",
     "single-service-alert"
   ]
 }
@@ -238,5 +244,6 @@ The current HTTP surface is limited to the endpoints documented above.
 The live `/reset` endpoint currently accepts these task names:
 
 - `single-service-alert`
-- `cascading-failure`
 - `ambiguous-incident`
+- `cascading-failure`
+- `memory-leak`

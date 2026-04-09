@@ -4,7 +4,7 @@ tests/test_task1_single_service_alert.py — Task 1 scenario tests.
 Three mandatory patterns for every scenario:
   1. Optimal path — expected score, done=True at end
   2. Determinism — same actions produce same rewards every run (3x)
-  3. Reward bounds — every possible command returns reward in [0.0, 1.0]
+    3. Reward bounds — every possible command returns reward in [0.001, 0.999]
 
 Plus: full lifecycle via HTTP (reset → step → step → done).
 """
@@ -128,7 +128,7 @@ class TestDeterminism:
 # ── 3. Reward bounds ──────────────────────────────────────────────────────────
 
 class TestRewardBounds:
-    """Every command must return reward in [0.0, 1.0]. Never raises."""
+    """Every command must return reward in [0.001, 0.999]. Never raises."""
 
     ALL_COMMANDS = [
         # All valid commands on all services
@@ -170,7 +170,7 @@ class TestRewardBounds:
     def test_reward_in_bounds(self, cmd):
         s = make_scenario()
         outcome = step_cmd(s, cmd)
-        assert 0.0 <= outcome.reward <= 1.0, \
+        assert 0.001 <= outcome.reward <= 0.999, \
             f"Reward {outcome.reward} out of bounds for: {cmd!r}"
 
     @pytest.mark.parametrize("cmd", ALL_COMMANDS)
@@ -217,13 +217,13 @@ class TestEscalationLogic:
     def test_escalate_without_enough_evidence(self):
         s = make_scenario()
         outcome = step_cmd(s, "escalate reason=no idea")
-        assert outcome.reward == pytest.approx(0.0)
+        assert outcome.reward == pytest.approx(0.001)
         assert outcome.done is True
 
     def test_wrong_diagnosis_gives_negative_reward(self):
         s = make_scenario()
         outcome = step_cmd(s, "diagnose root_cause=network_partition")
-        assert outcome.reward == pytest.approx(0.0)
+        assert outcome.reward == pytest.approx(0.001)
 
     def test_restart_does_not_resolve(self):
         s = make_scenario()

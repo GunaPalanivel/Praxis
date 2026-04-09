@@ -17,12 +17,12 @@ Red herrings:
   2. A memory leak in a different, low-priority 'metrics-agent' which is a known issue but not causing this.
   3. API service shows 502 Bad Gateway intermittently (because the worker pod is restarting).
 
-Optimal path:
-  1. query_logs service=worker timerange=10m   -> See GC pauses and OOMKilled     (+0.05)
-  2. check_metrics service=worker metric=memory -> Sawtooth pattern at 99%      (+0.08)
-  3. check_config service=worker             -> Discovers batch_size=5000       (+0.05)
-  4. diagnose root_cause=large_batch_size_oom -> CORRECT                     (+0.20)
-  5. rollback_deploy service=worker OR scale_resource service=worker resource=memory (+0.25)
+Optimal path (score ~0.475):
+    1. query_logs service=worker timerange=10m      -> See GC pauses and OOMKilled  (+0.035)
+    2. check_metrics service=worker metric=memory    -> Sawtooth pattern at 99%      (+0.085)
+    3. check_config service=worker                   -> Discovers batch_size=5000    (+0.035)
+    4. diagnose root_cause=large_batch_size_oom     -> CORRECT                       (+0.135)
+    5. rollback_deploy service=worker OR scale_resource service=worker resource=memory (+0.185)
 """
 
 from __future__ import annotations
@@ -356,6 +356,40 @@ Typical issues:
             investigation_result=f"Scaling '{resource}' on '{service}' did not fix the issue.",
             reward=score.reward,
             done=self.is_done(),
+            incident_resolved=False,
+            root_cause_identified=self._root_cause_identified,
+        )
+
+    def _handle_escalate(self, command: ParsedCommand) -> StepOutcome:
+        reason = command.params.get("reason", "")
+        investigations = len(self._done_investigations)
+
+        if investigations >= 3:
+            self._incident_resolved = True
+            self._current_system_status = {k: "healthy" for k in self._current_system_status}
+            score = self._score_event("escalation.with_evidence", resolved=True)
+            return StepOutcome(
+                investigation_result=(
+                    "Escalation accepted with sufficient evidence.\n\n"
+                    f"Reason: {reason}\n"
+                    f"Investigations completed: {investigations}\n"
+                    "On-call lead has enough context to execute remediation."
+                ),
+                reward=score.reward,
+                done=True,
+                incident_resolved=True,
+                root_cause_identified=self._root_cause_identified,
+                info={"resolution": "escalated_with_evidence"},
+            )
+
+        score = self._score_event("escalation.no_evidence", premature=True)
+        return StepOutcome(
+            investigation_result=(
+                "Escalation filed without enough evidence.\n"
+                f"Investigations completed: {investigations} (need >=3)."
+            ),
+            reward=score.reward,
+            done=True,
             incident_resolved=False,
             root_cause_identified=self._root_cause_identified,
         )

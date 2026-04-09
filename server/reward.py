@@ -5,20 +5,19 @@ Phase 6 introduces a single scoring module so scenario classes only emit
 semantic reward events (investigation, diagnosis, remediation, escalation)
 instead of carrying duplicated numeric constants.
 
-All returned rewards are clamped to [0.0, 1.0].
+All returned rewards are clamped to a judge-safe open interval [0.001, 0.999].
 
 Calibration rationale (updated for difficulty-curve fix):
   - Easy (single-service-alert):
-      Target optimal: ~0.70.  Investigation rewards are generous so even
+      Target optimal: ~0.63. Investigation rewards are generous so even
       a 4-step agent scores well.  This is the "on-ramp" task.
-  - Medium (cascading-failure):
-      Target optimal: ~0.52.  Investigation rewards are modest, requiring
-      multi-hop reasoning across services.  Red herrings waste steps.
-      Step cost adds mild pressure to stay focused.
-  - Hard (ambiguous-incident):
-      Target optimal: ~0.78 deterministic path, but a live model must
-      investigate 5+ services and distinguish infrastructure from app
-      failures.  Evidence gating prevents lucky guesses.
+  - Medium (ambiguous-incident):
+      Target optimal: ~0.71 deterministic path. The agent must correlate
+      signals across app and infra before diagnosis is rewarded.
+  - Hard (cascading-failure, memory-leak):
+      Target optimal: ~0.46 to ~0.48. Investigation is still rewarded,
+      but stronger step pressure and lower remediation margins penalize
+      wandering and reward disciplined triage.
 """
 
 from __future__ import annotations
@@ -27,9 +26,13 @@ from dataclasses import dataclass
 from typing import Mapping
 
 
+MIN_REWARD = 0.001
+MAX_REWARD = 0.999
+
+
 def clamp_reward(value: float) -> float:
-    """Clamp score to the OpenEnv judging-safe range [0.0, 1.0]."""
-    return max(0.0, min(1.0, value))
+    """Clamp score to a judge-safe open interval while staying in [0.0, 1.0]."""
+    return max(MIN_REWARD, min(MAX_REWARD, value))
 
 
 @dataclass(frozen=True)
@@ -104,7 +107,7 @@ class RewardPolicy:
 
 DEFAULT_REWARD_POLICIES: dict[str, RewardPolicy] = {
     # ── EASY: single-service-alert ──────────────────────────────────────
-    # Target optimal path: ~0.70 in 4 steps.
+    # Target optimal path: ~0.63 in 4 steps.
     # Generous investigation rewards so partial investigation is well-rewarded.
     # No step cost — the easy task is forgiving by design.
     "single-service-alert": RewardPolicy(
@@ -134,10 +137,10 @@ DEFAULT_REWARD_POLICIES: dict[str, RewardPolicy] = {
         # Easy task: no step cost, mild penalties
         time_pressure_cost_per_step=0.0,
     ),
-    # ── MEDIUM: cascading-failure ───────────────────────────────────────
-    # Target optimal path: ~0.52 in 7 steps.
+    # ── HARD: cascading-failure ─────────────────────────────────────────
+    # Target optimal path: ~0.46 in 7 steps.
     # Investigation rewards are lower — must follow the dependency chain.
-    # Step cost penalizes aimless wandering through red herrings.
+    # Stronger step cost penalizes wandering through red herrings.
     "cascading-failure": RewardPolicy(
         event_values={
             # Investigation — lower rewards, must multi-hop to find root cause
@@ -154,77 +157,77 @@ DEFAULT_REWARD_POLICIES: dict[str, RewardPolicy] = {
             "investigation.check_config.default": 0.02,
             "investigation.check_runbook.default": 0.03,
             # Diagnosis — moderate, must earn it through investigation
-            "diagnosis.correct": 0.15,
+            "diagnosis.correct": 0.14,
             "diagnosis.wrong": 0.0,
             # Remediation — both needed for full resolution
-            "remediation.kill_query.database": 0.10,       # stop the bleeding
+            "remediation.kill_query.database": 0.09,       # stop the bleeding
             "remediation.scale_resource.database.connection_pool": 0.08,  # prevent recurrence
             "remediation.wrong": 0.0,
             # Escalation
-            "escalation.with_evidence": 0.10,
+            "escalation.with_evidence": 0.09,
             "escalation.no_evidence": 0.0,
             # Error handling
             "unknown_command": 0.0,
             "invalid_input": 0.0,
         },
-        # Medium task: mild step cost discourages aimless exploration
-        time_pressure_cost_per_step=0.005,
+        # Hard task: stronger step cost discourages aimless exploration
+        time_pressure_cost_per_step=0.006,
     ),
-    # ── HARD: ambiguous-incident ────────────────────────────────────────
-    # Target optimal path: ~0.78 deterministic, but requires 9 steps of
-    # careful multi-service investigation.  A live model that gets
-    # distracted by red herrings (deploy, memory, search bug) will score
-    # much lower.  Evidence gating prevents blind diagnosis.
+    # ── MEDIUM: ambiguous-incident ──────────────────────────────────────
+    # Target optimal path: ~0.71 deterministic, requiring cross-service
+    # evidence correlation but with less harsh remediation pressure than
+    # the hard tasks.
     "ambiguous-incident": RewardPolicy(
         event_values={
             # Investigation — must check 3+ app services + infra
-            "investigation.query_logs.app": 0.05,
-            "investigation.query_logs.dns-resolver": 0.10,
-            "investigation.query_logs.default": 0.03,
-            "investigation.check_metrics.dns-resolver.resolution_failures": 0.10,
-            "investigation.check_metrics.app": 0.03,
-            "investigation.check_metrics.load-balancer": 0.02,
-            "investigation.check_metrics.default": 0.02,
-            "investigation.check_deps.default": 0.03,
-            "investigation.check_config.dns-resolver": 0.05,
-            "investigation.check_config.app": 0.02,
+            "investigation.query_logs.app": 0.048,
+            "investigation.query_logs.dns-resolver": 0.095,
+            "investigation.query_logs.default": 0.028,
+            "investigation.check_metrics.dns-resolver.resolution_failures": 0.095,
+            "investigation.check_metrics.app": 0.028,
+            "investigation.check_metrics.load-balancer": 0.018,
+            "investigation.check_metrics.default": 0.018,
+            "investigation.check_deps.default": 0.028,
+            "investigation.check_config.dns-resolver": 0.045,
+            "investigation.check_config.app": 0.018,
             "investigation.check_config.default": 0.01,
-            "investigation.check_runbook.default": 0.03,
+            "investigation.check_runbook.default": 0.028,
             # Diagnosis
-            "diagnosis.correct": 0.20,
+            "diagnosis.correct": 0.19,
             "diagnosis.wrong": 0.0,
             # Remediation
-            "remediation.restart_service.dns-resolver": 0.15,
+            "remediation.restart_service.dns-resolver": 0.14,
             "remediation.wrong": 0.0,
             # Escalation
-            "escalation.with_evidence": 0.15,
+            "escalation.with_evidence": 0.14,
             "escalation.no_evidence": 0.0,
             # Error handling
             "unknown_command": 0.0,
             "invalid_input": 0.0,
         },
-        # Hard task: mild step cost
+        # Medium task: mild step cost
         time_pressure_cost_per_step=0.003,
     ),
-    # ── TASK 4: memory-leak ─────────────────────────────────────────────
+    # ── HARD: memory-leak ───────────────────────────────────────────────
     # Requires checking memory metrics and config to find the OOM cause.
+    # Target optimal path: ~0.48 in 5 steps.
     "memory-leak": RewardPolicy(
         event_values={
             # Investigation
-            "investigation.query_logs.worker": 0.05,
+            "investigation.query_logs.worker": 0.04,
             "investigation.query_logs.default": 0.02,
-            "investigation.check_metrics.worker.memory": 0.10,
+            "investigation.check_metrics.worker.memory": 0.09,
             "investigation.check_metrics.default": 0.02,
             "investigation.check_deps.default": 0.02,
-            "investigation.check_config.worker": 0.05,
+            "investigation.check_config.worker": 0.04,
             "investigation.check_config.default": 0.02,
             "investigation.check_runbook.default": 0.03,
             # Diagnosis
-            "diagnosis.correct": 0.15,
+            "diagnosis.correct": 0.14,
             "diagnosis.wrong": 0.0,
             # Remediation
-            "remediation.rollback_deploy.worker": 0.20,
-            "remediation.scale_resource.worker.memory": 0.20,
+            "remediation.rollback_deploy.worker": 0.19,
+            "remediation.scale_resource.worker.memory": 0.19,
             "remediation.wrong": 0.0,
             # Escalation
             "escalation.with_evidence": 0.10,
@@ -233,7 +236,7 @@ DEFAULT_REWARD_POLICIES: dict[str, RewardPolicy] = {
             "unknown_command": 0.0,
             "invalid_input": 0.0,
         },
-        time_pressure_cost_per_step=0.004,
+        time_pressure_cost_per_step=0.005,
     ),
 }
 
