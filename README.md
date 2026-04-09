@@ -144,12 +144,12 @@ flowchart LR
 Model: `Qwen/Qwen2.5-72B-Instruct`  
 Endpoint: `https://gp5901-praxis.hf.space`
 
-| Task | Difficulty | Steps | Score |
-|---|---|---|---|
-| single-service-alert | Easy | 4 | 0.630 |
-| ambiguous-incident | Medium | - | 0.551 |
-| cascading-failure | Hard | 7 | 0.458 |
-| memory-leak | Medium-Hard | - | 0.475 |
+| Task                 | Difficulty  | Steps | Score |
+| -------------------- | ----------- | ----- | ----- |
+| single-service-alert | Easy        | 4     | 0.630 |
+| ambiguous-incident   | Medium      | -     | 0.551 |
+| cascading-failure    | Hard        | 7     | 0.458 |
+| memory-leak          | Medium-Hard | -     | 0.475 |
 
 ## Development
 
