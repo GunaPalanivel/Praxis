@@ -86,6 +86,13 @@ def _parse_end_rewards(stdout_text: str) -> list[float]:
     return [float(item) for item in rewards_csv.split(",") if item]
 
 
+def _parse_end_score(stdout_text: str) -> float | None:
+    match = re.search(r"^\[END\].* score=(\d+\.\d{3}) ", stdout_text, re.MULTILINE)
+    if not match:
+        return None
+    return float(match.group(1))
+
+
 async def _run_case(name: str, fake_env: _FakeEnv, expected_reward: float) -> tuple[bool, str]:
     original_from_url = inference.PraxisEnv.from_url
 
@@ -106,20 +113,30 @@ async def _run_case(name: str, fake_env: _FakeEnv, expected_reward: float) -> tu
     emitted = output_buffer.getvalue()
     step_rewards = _parse_step_rewards(emitted)
     end_rewards = _parse_end_rewards(emitted)
+    end_score = _parse_end_score(emitted)
 
     if not step_rewards:
         return False, f"{name}: no [STEP] rewards emitted\n{emitted}"
     if not end_rewards:
         return False, f"{name}: no [END] rewards emitted\n{emitted}"
 
+    if end_score is None:
+        return False, f"{name}: no [END] score emitted\n{emitted}"
+
     if any(value <= 0.0 or value >= 1.0 for value in step_rewards + end_rewards):
         return False, f"{name}: strict bounds violated in emitted rewards: steps={step_rewards}, end={end_rewards}"
+
+    if end_score <= 0.0 or end_score >= 1.0:
+        return False, f"{name}: strict bounds violated in END score: score={end_score}"
 
     if any(abs(value - expected_reward) > 1e-9 for value in step_rewards):
         return False, f"{name}: step rewards {step_rewards} did not match expected {expected_reward:.2f}"
 
     if any(abs(value - expected_reward) > 1e-9 for value in end_rewards):
         return False, f"{name}: END rewards {end_rewards} did not match expected {expected_reward:.2f}"
+
+    if abs(end_score - expected_reward) > 1e-9:
+        return False, f"{name}: END score {end_score:.3f} did not match expected {expected_reward:.2f}"
 
     if any(abs(value - expected_reward) > 1e-9 for value in episode_result.rewards):
         return False, f"{name}: EpisodeResult rewards {episode_result.rewards} did not match expected {expected_reward:.2f}"

@@ -58,14 +58,15 @@ def test_render_end_line_contract_and_rewards_csv():
     line = inference.render_end_line(
         success=True,
         steps=3,
-        rewards=[0.0, 0.05, 0.2],
+        score=0.083333,
+        rewards=[0.01, 0.05, 0.2],
     )
-    assert line == "[END] success=true steps=3 rewards=0.00,0.05,0.20"
+    assert line == "[END] success=true steps=3 score=0.083 rewards=0.01,0.05,0.20"
 
 
 def test_render_end_line_allows_empty_rewards_list():
-    line = inference.render_end_line(success=False, steps=0, rewards=[])
-    assert line == "[END] success=false steps=0 rewards="
+    line = inference.render_end_line(success=False, steps=0, score=0.001, rewards=[])
+    assert line == "[END] success=false steps=0 score=0.001 rewards="
 
 
 def test_clamp_output_reward_uses_printable_safe_bounds():
@@ -79,6 +80,20 @@ def test_clamp_output_reward_uses_printable_safe_bounds():
 def test_clamp_output_reward_exact_open_interval_edges():
     assert inference.clamp_output_reward(0.0) == pytest.approx(0.01)
     assert inference.clamp_output_reward(1.0) == pytest.approx(0.99)
+
+
+def test_clamp_output_score_uses_strict_open_interval_bounds():
+    assert inference.clamp_output_score(-1.0) == pytest.approx(0.001)
+    assert inference.clamp_output_score(0.0) == pytest.approx(0.001)
+    assert inference.clamp_output_score(0.42) == pytest.approx(0.42)
+    assert inference.clamp_output_score(1.0) == pytest.approx(0.999)
+    assert inference.clamp_output_score(5.0) == pytest.approx(0.999)
+
+
+def test_compute_task_score_uses_mean_and_is_strictly_inside_open_interval():
+    assert inference.compute_task_score([]) == pytest.approx(0.001)
+    assert inference.compute_task_score([0.2, 0.4, 0.6]) == pytest.approx(0.4)
+    assert inference.compute_task_score([0.99, 0.99]) == pytest.approx(0.99)
 
 
 def test_format_rewards_csv_printable_safe_bounds():
@@ -254,7 +269,9 @@ async def test_run_episode_clamps_raw_zero_reward_to_output_floor(monkeypatch, c
     out = capsys.readouterr().out
 
     assert result.rewards == [pytest.approx(0.01)]
+    assert result.score == pytest.approx(0.01)
     assert "reward=0.01" in out
+    assert "score=0.010" in out
     assert "rewards=0.01" in out
 
 
@@ -271,7 +288,9 @@ async def test_run_episode_clamps_raw_one_reward_to_output_ceiling(monkeypatch, 
     out = capsys.readouterr().out
 
     assert result.rewards == [pytest.approx(0.99)]
+    assert result.score == pytest.approx(0.99)
     assert "reward=0.99" in out
+    assert "score=0.990" in out
     assert "rewards=0.99" in out
 
 
@@ -288,6 +307,8 @@ async def test_run_episode_step_exception_uses_output_floor(monkeypatch, capsys)
     out = capsys.readouterr().out
 
     assert result.rewards == [pytest.approx(0.01)]
+    assert result.score == pytest.approx(0.01)
     assert "reward=0.01" in out
+    assert "score=0.010" in out
     assert "simulated_step_failure" in out
     assert "rewards=0.01" in out

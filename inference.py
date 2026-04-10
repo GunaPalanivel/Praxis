@@ -4,7 +4,7 @@ Baseline inference script for Praxis.
 Contract requirements:
   [START] task=<task_name> env=<benchmark> model=<model_name>
   [STEP] step=<n> action=<action_str> reward=<0.00> done=<true|false> error=<msg|null>
-  [END] success=<true|false> steps=<n> rewards=<r1,r2,...,rn>
+    [END] success=<true|false> steps=<n> score=<0.000> rewards=<r1,r2,...,rn>
 """
 
 from __future__ import annotations
@@ -83,6 +83,8 @@ SUCCESS_SCORE_THRESHOLD = float(os.getenv("SUCCESS_SCORE_THRESHOLD", "0.10"))
 MAX_STEPS_CAP = int(os.getenv("MAX_STEPS_CAP", "25"))
 OUTPUT_MIN_REWARD = 0.01
 OUTPUT_MAX_REWARD = 0.99
+OUTPUT_MIN_SCORE = 0.001
+OUTPUT_MAX_SCORE = 0.999
 
 
 SYSTEM_PROMPT = (
@@ -107,6 +109,7 @@ SYSTEM_PROMPT = (
 class EpisodeResult:
     success: bool
     steps: int
+    score: float
     rewards: list[float]
 
 
@@ -134,6 +137,17 @@ def clamp_output_reward(reward: float) -> float:
     return max(OUTPUT_MIN_REWARD, min(OUTPUT_MAX_REWARD, float(reward)))
 
 
+def clamp_output_score(score: float) -> float:
+    """Clamp task-level score to strict open interval (0, 1)."""
+    return max(OUTPUT_MIN_SCORE, min(OUTPUT_MAX_SCORE, float(score)))
+
+
+def compute_task_score(rewards: list[float]) -> float:
+    if not rewards:
+        return OUTPUT_MIN_SCORE
+    return clamp_output_score(sum(rewards) / len(rewards))
+
+
 def render_start_line(task: str, env_name: str, model_name: str) -> str:
     return f"[START] task={task} env={env_name} model={model_name}"
 
@@ -152,9 +166,9 @@ def render_step_line(
     )
 
 
-def render_end_line(success: bool, steps: int, rewards: list[float]) -> str:
+def render_end_line(success: bool, steps: int, score: float, rewards: list[float]) -> str:
     return (
-        f"[END] success={format_bool(success)} steps={steps} "
+        f"[END] success={format_bool(success)} steps={steps} score={float(score):.3f} "
         f"rewards={format_rewards_csv(rewards)}"
     )
 
@@ -378,9 +392,10 @@ async def run_episode(task_name: str, client: OpenAI | None) -> EpisodeResult:
             pass
 
     total_reward = sum(rewards)
+    task_score = compute_task_score(rewards)
     success = bool((not encountered_fatal) and steps_taken > 0 and total_reward >= SUCCESS_SCORE_THRESHOLD)
-    print(render_end_line(success=success, steps=steps_taken, rewards=rewards), flush=True)
-    return EpisodeResult(success=success, steps=steps_taken, rewards=rewards)
+    print(render_end_line(success=success, steps=steps_taken, score=task_score, rewards=rewards), flush=True)
+    return EpisodeResult(success=success, steps=steps_taken, score=task_score, rewards=rewards)
 
 
 def ensure_server_running(url: str) -> subprocess.Popen | None:
