@@ -106,6 +106,8 @@ Praxis is deterministic: the same action sequence yields the same outputs and re
 | `cascading-failure`    | Hard       | P1       | 20        | Runaway analytics query exhausts DB connection pool and cascades failures | 0.458              |
 | `memory-leak`          | Hard       | P2       | 25        | Worker OOM crashes from oversized batch processing configuration          | 0.475              |
 
+`POST /reset` also accepts difficulty aliases: `easy` -> `single-service-alert`, `medium` -> `ambiguous-incident`, `hard` -> `cascading-failure`.
+
 Difficulty progression is intentional: isolated service incident (easy) -> ambiguous cross-service investigation with infra evidence gating (medium) -> high-pressure remediation incidents (hard).
 
 ## Reward Function
@@ -133,6 +135,7 @@ flowchart LR
     E --> F[Single Service Alert]
     E --> G[Cascading Failure]
     E --> H[Ambiguous Incident]
+    E --> K[Memory Leak]
     E --> I[Reward Engine]
     I --> C
     C --> J[Observation plus Reward plus Done plus Info]
@@ -144,12 +147,31 @@ flowchart LR
 Model: `Qwen/Qwen2.5-72B-Instruct`  
 Endpoint: `https://gp5901-praxis.hf.space`
 
-| Task                 | Difficulty  | Steps | Score |
-| -------------------- | ----------- | ----- | ----- |
-| single-service-alert | Easy        | 4     | 0.630 |
-| ambiguous-incident   | Medium      | -     | 0.551 |
-| cascading-failure    | Hard        | 7     | 0.458 |
-| memory-leak          | Medium-Hard | -     | 0.475 |
+Latest observed live run snapshot (2026-04-10):
+
+| Task                 | Difficulty | Steps | Score |
+| -------------------- | ---------- | ----- | ----- |
+| single-service-alert | Easy       | 5     | 0.092 |
+| cascading-failure    | Hard       | 20    | 0.041 |
+| ambiguous-incident   | Medium     | 25    | 0.020 |
+| memory-leak          | Hard       | 5     | 0.095 |
+| Mean task score      | -          | -     | 0.062 |
+
+Scores can vary between runs based on model behavior and inference endpoint conditions.
+Run `python inference.py` to generate a fresh score snapshot.
+
+### Inference Output Contract
+
+`inference.py` emits strict structured lines for judge parsing:
+
+```text
+[START] task=<task_name> env=<benchmark> model=<model_name>
+[STEP] step=<n> action=<action_str> reward=<0.00> done=<true|false> error=<msg|null>
+[END] success=<true|false> steps=<n> score=<0.000> rewards=<r1,r2,...,rn>
+```
+
+- Per-step rewards are clamped to `[0.01, 0.99]`.
+- Task score is computed as mean(step rewards), clamped to `[0.001, 0.999]`.
 
 ## Development
 

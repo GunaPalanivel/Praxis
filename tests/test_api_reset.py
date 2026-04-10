@@ -45,6 +45,36 @@ def test_reset_accepts_explicit_task_name():
     assert payload["severity"] == "P1"
 
 
+def test_reset_accepts_easy_alias_task_name():
+    response = client.post("/reset", json={"task_name": "easy"})
+    assert response.status_code == 200
+
+    payload = response.json()
+    assert "observation" in payload
+    assert payload["step_number"] == 0
+    assert payload["severity"] == "P2"
+
+
+def test_reset_accepts_medium_alias_task_name():
+    response = client.post("/reset", json={"task_name": "medium"})
+    assert response.status_code == 200
+
+    payload = response.json()
+    assert "observation" in payload
+    assert payload["step_number"] == 0
+    assert payload["severity"] == "P2"
+
+
+def test_reset_accepts_hard_alias_task_name():
+    response = client.post("/reset", json={"task_name": "hard"})
+    assert response.status_code == 200
+
+    payload = response.json()
+    assert "observation" in payload
+    assert payload["step_number"] == 0
+    assert payload["severity"] == "P1"
+
+
 def test_reset_rejects_unknown_task_name():
     response = client.post("/reset", json={"task_name": "no-such-task"})
     assert response.status_code == 400

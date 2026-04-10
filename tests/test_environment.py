@@ -51,6 +51,26 @@ class TestResetErrors:
         assert "imaginary-scenario" in str(exc_info.value)
 
 
+class TestTaskAliases:
+    def test_reset_accepts_easy_alias(self):
+        env = PraxisEnvironment()
+        obs = env.reset(task_name="easy")
+        assert obs.severity == "P2"
+        assert env.state().task_name == "single-service-alert"
+
+    def test_reset_accepts_medium_alias(self):
+        env = PraxisEnvironment()
+        obs = env.reset(task_name="medium")
+        assert obs.severity == "P2"
+        assert env.state().task_name == "ambiguous-incident"
+
+    def test_reset_accepts_hard_alias(self):
+        env = PraxisEnvironment()
+        obs = env.reset(task_name="hard")
+        assert obs.severity == "P1"
+        assert env.state().task_name == "cascading-failure"
+
+
 class TestCommandParserIntegration:
     """
     Test that parse_command integrates correctly with step().

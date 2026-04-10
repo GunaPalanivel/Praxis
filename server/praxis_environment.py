@@ -41,6 +41,13 @@ from server.reward import MAX_REWARD, MIN_REWARD
 logger = logging.getLogger(__name__)
 
 
+TASK_NAME_ALIASES: dict[str, str] = {
+    "easy": "single-service-alert",
+    "medium": "ambiguous-incident",
+    "hard": "cascading-failure",
+}
+
+
 class PraxisEnvironment:
     """
     Stateful environment controller.
@@ -62,6 +69,14 @@ class PraxisEnvironment:
         self._scenario: BaseScenario | None = None
         self._episode_count: int = 0
 
+    @staticmethod
+    def resolve_task_name(task_name: str) -> str:
+        """Resolve user-facing aliases to canonical scenario task names."""
+        normalized = (task_name or "single-service-alert").strip().lower()
+        if not normalized:
+            normalized = "single-service-alert"
+        return TASK_NAME_ALIASES.get(normalized, normalized)
+
     # ── Public API (called by FastAPI routes) ─────────────────────────────────
 
     def reset(self, task_name: str = "single-service-alert") -> PraxisObservation:
@@ -77,12 +92,19 @@ class PraxisEnvironment:
         Raises:
             ValueError: if task_name is not registered.
         """
+        canonical_task_name = self.resolve_task_name(task_name)
+
         self._episode_count += 1
-        episode_id = f"{task_name}_{self._episode_count}"
+        episode_id = f"{canonical_task_name}_{self._episode_count}"
 
-        logger.info("reset() → episode_id=%s task=%s", episode_id, task_name)
+        logger.info(
+            "reset() -> episode_id=%s task=%s requested_task=%s",
+            episode_id,
+            canonical_task_name,
+            task_name,
+        )
 
-        self._scenario = get_scenario(task_name)
+        self._scenario = get_scenario(canonical_task_name)
         self._scenario.reset(episode_id=episode_id)
 
         obs = self._scenario.get_observation()
