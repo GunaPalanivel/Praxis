@@ -15,6 +15,8 @@ pinned: false
 Praxis is an OpenEnv-compatible environment that trains and evaluates agents on real-world SRE incident response.
 Agents investigate logs and metrics, diagnose root causes, and execute remediations through a command-driven API.
 
+> Built for [Meta PyTorch OpenEnv Hackathon x SST](https://www.scaler.com/school-of-technology/meta-pytorch-hackathon)
+
 ## Why This Matters
 
 Incident response is a real production workflow, not a toy benchmark. On-call engineers repeatedly perform triage,
