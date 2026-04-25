@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import logging
 import math
+import random
 from typing import Any
 
 from praxis_env.models import (
@@ -46,6 +47,7 @@ TASK_NAME_ALIASES: dict[str, str] = {
     "medium": "ambiguous-incident",
     "hard": "cascading-failure",
 }
+PROCEDURAL_DIFFICULTIES = frozenset({"easy", "medium", "hard"})
 
 
 class PraxisEnvironment:
@@ -72,6 +74,7 @@ class PraxisEnvironment:
     def __init__(self) -> None:
         self._scenario: BaseScenario | None = None
         self._episode_count: int = 0
+        self._last_reset_metadata: dict[str, Any] = {}
 
     @staticmethod
     def resolve_task_name(task_name: str) -> str:
@@ -80,6 +83,31 @@ class PraxisEnvironment:
         if not normalized:
             normalized = "single-service-alert"
         return TASK_NAME_ALIASES.get(normalized, normalized)
+
+    @staticmethod
+    def resolve_task_request(task_name: str) -> tuple[str, str | None]:
+        """Resolve canonical task name and optional procedural difficulty."""
+        normalized = (task_name or "single-service-alert").strip().lower()
+        if not normalized:
+            normalized = "single-service-alert"
+
+        if normalized.startswith("procedural-incident"):
+            if normalized == "procedural-incident":
+                return "procedural-incident", "medium"
+            if ":" in normalized:
+                _, _, suffix = normalized.partition(":")
+                if suffix in PROCEDURAL_DIFFICULTIES:
+                    return "procedural-incident", suffix
+            if normalized.count("-") >= 2:
+                suffix = normalized.rsplit("-", 1)[-1]
+                if suffix in PROCEDURAL_DIFFICULTIES:
+                    return "procedural-incident", suffix
+
+        return TASK_NAME_ALIASES.get(normalized, normalized), None
+
+    @property
+    def last_reset_metadata(self) -> dict[str, Any]:
+        return dict(self._last_reset_metadata)
 
     # ── Public API (called by FastAPI routes) ─────────────────────────────────
 
@@ -101,7 +129,8 @@ class PraxisEnvironment:
         Raises:
             ValueError: if task_name is not registered.
         """
-        canonical_task_name = self.resolve_task_name(task_name)
+        canonical_task_name, procedural_difficulty = self.resolve_task_request(task_name)
+        resolved_seed = seed
 
         self._episode_count += 1
         episode_id = f"{canonical_task_name}_{self._episode_count}"
@@ -111,11 +140,28 @@ class PraxisEnvironment:
             episode_id,
             canonical_task_name,
             task_name,
-            seed,
+            resolved_seed,
         )
 
-        self._scenario = get_scenario(canonical_task_name)
+        if canonical_task_name == "procedural-incident":
+            if resolved_seed is None:
+                resolved_seed = random.randint(0, 2**31 - 1)
+            self._scenario = get_scenario(
+                canonical_task_name,
+                seed=resolved_seed,
+                difficulty=procedural_difficulty,
+            )
+        else:
+            self._scenario = get_scenario(canonical_task_name)
+
         self._scenario.reset(episode_id=episode_id)
+        self._last_reset_metadata = {
+            "seed": resolved_seed,
+            "difficulty": (
+                procedural_difficulty if canonical_task_name == "procedural-incident" else None
+            ),
+            "task_name": canonical_task_name,
+        }
 
         obs = self._scenario.get_observation()
         # Override investigation_result with scenario's initial text
