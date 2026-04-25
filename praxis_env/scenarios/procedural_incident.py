@@ -169,9 +169,7 @@ class ProceduralIncidentScenario(BaseScenario):
         remediation_action, remediation_service = remediation_command.split(" ", 1)
         self._correct_remediation_action = remediation_action
         self._correct_remediation_service = remediation_service
-        self._correct_remediation_event = (
-            f"remediation.{self._correct_remediation_action}.{self._correct_remediation_service}"
-        )
+        self._correct_remediation_event = f"remediation.{self._correct_remediation_action}.{self._correct_remediation_service}"
 
         self._reward_engine.register_policy(
             self.NAME, self._build_procedural_policy(self._difficulty)
