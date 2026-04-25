@@ -26,7 +26,6 @@ from typing import Any
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from praxis_env.models import PraxisAction, PraxisObservation, PraxisState
@@ -49,18 +48,22 @@ task_catalog = PraxisEnvironment().list_tasks()
 
 # ── Request / Response schemas (Pydantic, for FastAPI validation) ─────────────
 
+
 class ResetRequest(BaseModel):
     """POST /reset body."""
+
     task_name: str = "single-service-alert"
     seed: int | None = None
 
 
 class StepRequest(BaseModel):
     """POST /step body."""
+
     command: str
 
 
 # ── App factory ───────────────────────────────────────────────────────────────
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -197,7 +200,10 @@ def create_app() -> FastAPI:
             body = await request.body()
             if body and body.strip():
                 data = await request.json()
-                task_name = data.get("task_name", "single-service-alert") or "single-service-alert"
+                task_name = (
+                    data.get("task_name", "single-service-alert")
+                    or "single-service-alert"
+                )
                 seed = data.get("seed")
         except Exception:
             pass  # no body or invalid JSON — use default task

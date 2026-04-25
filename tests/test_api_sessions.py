@@ -17,7 +17,9 @@ def _reset_session(task_name: str = "single-service-alert") -> str:
 
 
 def test_step_requires_session_header():
-    response = client.post("/step", json={"command": "query_logs service=auth timerange=5m"})
+    response = client.post(
+        "/step", json={"command": "query_logs service=auth timerange=5m"}
+    )
     assert response.status_code == 400
     assert response.json() == {"detail": "Missing X-Session-Id header"}
 
