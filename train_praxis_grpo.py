@@ -19,9 +19,14 @@ Designed for two execution modes:
 2) full training (GPU): runs TRL GRPO with optional Unsloth acceleration.
    Falls back to plain TRL path when Unsloth is unavailable.
 
-TRL note: the default reward_func scores each completion with a single env step
-(the first parsed command after reset), not a full multi-step rollout. Smoke mode
-and the Colab / scripts/generate_grpo_evidence.py loops use longer trajectories.
+TRL note: ``reward_func`` runs a full HTTP rollout per model completion. Each
+non-empty line of the completion is executed as a command in order (same
+session, after one ``reset``), up to ``--max-turns`` steps. If the model emits a
+single line, behavior matches the former one-step contract. If the episode ends
+with ``done=true`` and the server reports ``final_score`` on ``/state``, that
+value is the scalar reward; otherwise the reward is the mean per-step reward.
+Smoke mode and Colab / ``scripts/generate_grpo_evidence.py`` use similar
+multi-step loops for metrics.
 
 Examples:
   python train_praxis_grpo.py --smoke --steps 5 --tasks single-service-alert
@@ -47,6 +52,10 @@ from pathlib import Path
 from typing import Any, TypeVar
 
 from praxis_env import PraxisAction, PraxisEnv
+from praxis_env.server_bootstrap import (
+    close_server_process_stderr,
+    ensure_local_uvicorn,
+)
 from server.command_parser import is_known_action, parse_command
 
 _T = TypeVar("_T")
@@ -151,41 +160,6 @@ def _run_async_blocking(coro: Coroutine[Any, Any, _T]) -> _T:
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
         return pool.submit(_runner).result()
-
-
-def ensure_server_running(url: str) -> subprocess.Popen[Any] | None:
-    import httpx
-    import time
-
-    try:
-        response = httpx.get(f"{url}/health", timeout=1.0)
-        if response.status_code == 200:
-            return None
-    except Exception:
-        pass
-
-    print("[SMOKE] Starting local environment server...", flush=True)
-    port = url.split(":")[-1].replace("/", "")
-    cmd = [
-        sys.executable,
-        "-m",
-        "uvicorn",
-        "server.app:app",
-        "--port",
-        port,
-        "--host",
-        "127.0.0.1",
-    ]
-    proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    start_time = time.time()
-    while time.time() - start_time < 15.0:
-        try:
-            if httpx.get(f"{url}/health", timeout=1.0).status_code == 200:
-                print("[SMOKE] Server is healthy.", flush=True)
-                return proc
-        except Exception:
-            time.sleep(0.5)
-    raise RuntimeError(f"Failed to start server at {url}")
 
 
 def _extract_turn_credit(info: dict[str, Any]) -> tuple[float, float, float, float]:
@@ -393,7 +367,11 @@ def run_smoke(args: argparse.Namespace) -> int:
     wandb_run = _init_wandb(run_name, enabled=True)
     trackio_mod = _init_trackio(enabled=True)
 
-    server_proc = ensure_server_running(args.base_url)
+    server_proc, _log_path = ensure_local_uvicorn(
+        args.base_url,
+        start_message="[SMOKE] Starting local environment server...",
+        healthy_message="[SMOKE] Server is healthy.",
+    )
     try:
         task_metrics: dict[str, list[StepTelemetry]] = {}
         for idx, task_name in enumerate(parse_tasks(args.tasks)):
@@ -443,6 +421,7 @@ def run_smoke(args: argparse.Namespace) -> int:
         if server_proc is not None:
             server_proc.terminate()
             server_proc.wait()
+            close_server_process_stderr(server_proc)
 
 
 def _normalize_completion(completion: Any) -> str:
@@ -464,7 +443,11 @@ def _normalize_completion(completion: Any) -> str:
 
 
 def _pick_command_from_completion(text: str, task_name: str, seed: int) -> str:
-    command = text.splitlines()[0].strip()
+    lines = [ln.strip() for ln in (text or "").splitlines() if ln.strip()]
+    if not lines:
+        rng = random.Random(f"{seed}:{task_name}:empty")
+        return _fallback_command(task_name, 1, rng)
+    command = lines[0]
     parsed = parse_command(command)
     if is_known_action(parsed.action_type):
         return command
@@ -472,19 +455,60 @@ def _pick_command_from_completion(text: str, task_name: str, seed: int) -> str:
     return _fallback_command(task_name, 1, rng)
 
 
-async def _score_completion_via_env(
+def _commands_for_rollout(completion_text: str, task_name: str, seed: int) -> list[str]:
+    """
+    One command per non-empty line. Unknown lines are replaced with a
+    deterministic fallback for that step (same family as ``_run_smoke_episode``).
+    If there are no lines, one fallback is produced from the first line heuristic.
+    """
+    lines = [ln.strip() for ln in (completion_text or "").splitlines() if ln.strip()]
+    if not lines:
+        return [_pick_command_from_completion(completion_text or "", task_name, seed)]
+    out: list[str] = []
+    rng = random.Random(f"{seed}:{task_name}")
+    for step_idx, line in enumerate(lines, start=1):
+        parsed = parse_command(line)
+        if is_known_action(parsed.action_type):
+            out.append(line)
+        else:
+            out.append(_fallback_command(task_name, step_idx, rng))
+    return out
+
+
+async def _rollout_episode_return_score(
     *,
     base_url: str,
     task_name: str,
     seed: int,
     completion_text: str,
+    max_steps: int,
 ) -> float:
+    """
+    Full trajectory reward for GRPO: execute each parsed command in one session
+    (after a single ``reset``), at most ``max_steps`` environment steps. Prefer
+    ``/state`` ``final_score`` when the server marks the episode terminal.
+    """
     env = await PraxisEnv.from_url(base_url)
     try:
         await env.reset(task_name=task_name)
-        command = _pick_command_from_completion(completion_text, task_name, seed)
-        result = await env.step(PraxisAction(command=command))
-        return float(result.reward)
+        commands = _commands_for_rollout(completion_text, task_name, seed)
+        step_rewards: list[float] = []
+        for i, command in enumerate(commands):
+            if i >= max_steps:
+                break
+            result = await env.step(PraxisAction(command=command))
+            step_rewards.append(float(result.reward))
+            if result.done:
+                state = await env.get_state()
+                if state.final_score is not None:
+                    return float(state.final_score)
+                break
+        if not step_rewards:
+            return 0.01
+        state = await env.get_state()
+        if state.final_score is not None:
+            return float(state.final_score)
+        return float(sum(step_rewards) / len(step_rewards))
     finally:
         await env.close()
 
@@ -498,7 +522,8 @@ def _build_training_rows(tasks: list[str], repeats: int) -> list[dict[str, str]]
                     "prompt": (
                         "You are an SRE incident commander. "
                         f"Investigate and resolve task: {task_name}. "
-                        "Return one valid Praxis command."
+                        "Reply with one valid Praxis command per line; use multiple "
+                        "lines for a full remediation sequence when needed."
                     ),
                     "task_name": task_name,
                 }
@@ -563,7 +588,11 @@ def run_training(args: argparse.Namespace) -> int:
     print(f"[TRAIN] model={model_name} unsloth={use_unsloth}")
     start = time.perf_counter()
     try:
-        server_proc = ensure_server_running(args.base_url)
+        server_proc, _ = ensure_local_uvicorn(
+            args.base_url,
+            start_message="[TRAIN] Starting local environment server...",
+            healthy_message="[TRAIN] Server is healthy.",
+        )
         if use_unsloth and fast_model is not None:
             model, tokenizer = fast_model.from_pretrained(
                 model_name=model_name,
@@ -587,6 +616,8 @@ def run_training(args: argparse.Namespace) -> int:
         except Exception:
             pass
 
+        max_turns = int(args.max_turns)
+
         def reward_func(
             prompts: list[Any], completions: list[Any], **_: Any
         ) -> list[float]:
@@ -598,11 +629,12 @@ def run_training(args: argparse.Namespace) -> int:
                 if isinstance(prompt_obj, dict):
                     task_name = str(prompt_obj.get("task_name") or task_name)
                 score = _run_async_blocking(
-                    _score_completion_via_env(
+                    _rollout_episode_return_score(
                         base_url=args.base_url,
                         task_name=task_name,
                         seed=seed + idx,
                         completion_text=completion_text,
+                        max_steps=max_turns,
                     )
                 )
                 rewards.append(score)
@@ -704,6 +736,7 @@ def run_training(args: argparse.Namespace) -> int:
         if server_proc is not None:
             server_proc.terminate()
             server_proc.wait()
+            close_server_process_stderr(server_proc)
 
 
 def main() -> int:

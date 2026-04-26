@@ -70,13 +70,14 @@ praxis/
 │       └── notes/*.md
 ├── docs/
 │   ├── baseline_scores.md           # 4-row table (Issues #30 + #32)
-│   ├── reward_curve.png             # mtGRPO ≥50 steps (Issue #32)
-│   ├── loss_curve.png               # mtGRPO loss (Issue #32)
+│   ├── figures/                     # committed plots (see figures/README.md)
+│   │   ├── reward_curve.png         # mtGRPO ≥50 steps (Issue #32)
+│   │   ├── loss_curve.png           # mtGRPO loss (Issue #32)
+│   │   ├── rollout_compare.png      # side-by-side reward chart (Issue #33)
+│   │   └── rubric_attribution.png   # optional (post-#32)
 │   ├── rollout_baseline.txt         # before-rollout (Issue #33)
 │   ├── rollout_trained.txt          # after-rollout (Issue #33)
-│   ├── rollout_compare.png          # side-by-side reward chart (Issue #33)
 │   ├── demo.gif                     # cutoff banner moment (Issue #33)
-│   ├── rubric_attribution.png       # optional (post-#32)
 │   ├── determinism_receipt.txt
 │   ├── runtime_receipt.txt
 │   ├── training_links.md            # Trackio + WandB public URLs (Issue #32)
@@ -90,16 +91,16 @@ praxis/
 
 ## 2. External assets (URLs in README)
 
-| Asset                   | Owner | URL pattern                                                     | Issue       |
-| ----------------------- | ----- | --------------------------------------------------------------- | ----------- |
-| HuggingFace Space       | Gokul | `https://huggingface.co/spaces/<org>/praxis-env`                | #37         |
-| Trackio run / dashboard | Gokul | `https://trackio.io/<run-id>` or HF Trackio Space               | #32         |
-| WandB **public** run    | Gokul | `https://wandb.ai/<team>/praxis-mission-ops/runs/<id>`          | #32         |
-| Mini-blog (HF blog)     | Gokul | `https://huggingface.co/blog/<slug>` (title per S39)            | #38         |
-| YouTube video (≤ 2 min) | Gokul | `https://youtu.be/<id>` (alt: HF Space video tab)               | #38         |
-| Slide deck              | Gokul | Google Slides public URL OR PDF in repo                         | #38         |
-| Rootly logs-dataset     | —     | `https://huggingface.co/datasets/Rootly-AI-Labs/logs-dataset`   | #27 (ADR-17)|
-| arxiv references        | —     | AgeMem (S28), Context Bloat 2601.07190 (S29), GRPO survey (S30), UltraHorizon (S36) | n/a |
+| Asset                   | Owner | URL pattern                                                                         | Issue        |
+| ----------------------- | ----- | ----------------------------------------------------------------------------------- | ------------ |
+| HuggingFace Space       | Gokul | `https://huggingface.co/spaces/<org>/praxis-env`                                    | #37          |
+| Trackio run / dashboard | Gokul | `https://trackio.io/<run-id>` or HF Trackio Space                                   | #32          |
+| WandB **public** run    | Gokul | `https://wandb.ai/<team>/praxis-mission-ops/runs/<id>`                              | #32          |
+| Mini-blog (HF blog)     | Gokul | `https://huggingface.co/blog/<slug>` (title per S39)                                | #38          |
+| YouTube video (≤ 2 min) | Gokul | `https://youtu.be/<id>` (alt: HF Space video tab)                                   | #38          |
+| Slide deck              | Gokul | Google Slides public URL OR PDF in repo                                             | #38          |
+| Rootly logs-dataset     | —     | `https://huggingface.co/datasets/Rootly-AI-Labs/logs-dataset`                       | #27 (ADR-17) |
+| arxiv references        | —     | AgeMem (S28), Context Bloat 2601.07190 (S29), GRPO survey (S30), UltraHorizon (S36) | n/a          |
 
 Constraint (S2): _"Please do not include big video files in your Env submission on HF Hub… Please use url as reference link to additional materials."_
 
@@ -109,13 +110,14 @@ Constraint (S2): _"Please do not include big video files in your Env submission 
 
 ```markdown
 **Praxis MissionOps — Long-Horizon SRE Agent Training**
+
 ### Plan. Remember. Recover. Score = outcome × efficiency.
 
-![rollout_compare](docs/rollout_compare.png)
+![rollout_compare](docs/figures/rollout_compare.png)
 ![demo](docs/demo.gif)
 
 - 🚀 Live env: https://huggingface.co/spaces/<org>/praxis-env
-- 📈 Reward curve: docs/reward_curve.png · Loss curve: docs/loss_curve.png
+- 📈 Reward curve: docs/figures/reward_curve.png · Loss curve: docs/figures/loss_curve.png
 - 📊 Score gap (4 rows): docs/baseline_scores.md
 - 🎯 Trackio: <link> · WandB (public): <link> (docs/training_links.md)
 - 🏆 Benchmark API: `GET /benchmark` (Issue #21, ADR-14) — model-vs-mean-score JSON

@@ -140,7 +140,7 @@ Quality > parallelism. Reviewer can hold a lane indefinitely.
 
 **Date**: 2026-04-25 · **Status**: Accepted · **Issues**: #10, #11, #12, #19 · **Source**: S2 ("Make your plots readable").
 
-Score table → `docs/baseline_scores.md`. Reward curve → `docs/reward_curve.png`. Determinism receipt → `docs/determinism_receipt.txt`. Demo trajectory → `docs/demo_trajectory.txt`. All linked from README.
+Score table → `docs/baseline_scores.md`. Reward curve → `docs/figures/reward_curve.png`. Determinism receipt → `docs/determinism_receipt.txt`. Demo trajectory → `docs/demo_trajectory.txt`. All linked from README.
 
 Reason: judges spend seconds on plots. They must be in the repo, not only in a Colab cell or a deleted Wandb run (per S2 "What makes a submission stand out").
 

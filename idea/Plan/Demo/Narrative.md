@@ -30,10 +30,10 @@ This is the moment judges remember. We render the comparison live or pre-recorde
 | --- | --- |
 | `docs/rollout_baseline.txt` | Full text trajectory of baseline Qwen-7B — wandering, no plan, no save_finding, illegal_log_after_cutoff penalty, final score `0.04`. |
 | `docs/rollout_trained.txt`  | Same seed, same mission, after Issue #32 mtGRPO training — `create_plan`, `save_finding` × 3, `[CONTEXT LIMIT]`, `recall_memory`, disturbance hit at step 100, `revise_plan`, `submit_report`, final score `0.31`. |
-| `docs/rollout_compare.png`  | Side-by-side per-turn reward chart, both lines on same axes, baseline flat near 0, trained climbing to ~0.55 cumulative. |
+| `docs/figures/rollout_compare.png`  | Side-by-side per-turn reward chart, both lines on same axes, baseline flat near 0, trained climbing to ~0.55 cumulative. |
 | `docs/demo.gif`             | 8-second GIF of the moment when `[CONTEXT LIMIT REACHED]` banner appears and the trained agent calls `recall_memory` while baseline panics. |
 
-The README opens with `docs/rollout_compare.png` then `docs/demo.gif` — no slide deck before the visual.
+The README opens with `docs/figures/rollout_compare.png` then `docs/demo.gif` — no slide deck before the visual.
 
 ---
 
@@ -43,7 +43,7 @@ The README opens with `docs/rollout_compare.png` then `docs/demo.gif` — no sli
 | --- | ---------------------------------- | -------------------------------------------------------------------------------------------------------- |
 | 1   | Praxis MissionOps                  | Long-horizon SRE missions: 80–150 turns, 8 phases, scattered instructions, real Rootly artifacts.        |
 | 2   | The Capability Gap                 | Real incidents are missions. Agents collapse at step 30 from context bloat (memory) and from no plan.    |
-| 3   | The Trophy: before vs after        | `docs/rollout_compare.png` + `docs/demo.gif`. 0.04 → 0.31 after one mtGRPO run.                          |
+| 3   | The Trophy: before vs after        | `docs/figures/rollout_compare.png` + `docs/demo.gif`. 0.04 → 0.31 after one mtGRPO run.                          |
 | 4   | Composable Rubrics                 | Planning / Memory / Recovery / Terminal at 0.20 / 0.20 / 0.20 / 0.40 weights. Score = outcome × efficiency. |
 | 5   | What's Next + How To Train         | TRL `environment_factory`. Trackio + WandB public run links. ∞ tasks via procedural seed + Rootly draws. |
 
@@ -58,7 +58,7 @@ Slide assets live in [`EvidencePackage.md`](./EvidencePackage.md).
 ### Plan. Remember. Recover. Score = outcome × efficiency.
 ```
 
-Followed immediately by `docs/rollout_compare.png` and `docs/demo.gif`. No paragraphs above the fold.
+Followed immediately by `docs/figures/rollout_compare.png` and `docs/demo.gif`. No paragraphs above the fold.
 
 ---
 
@@ -80,7 +80,7 @@ Followed immediately by `docs/rollout_compare.png` and `docs/demo.gif`. No parag
 
 **Q2: "Why mtGRPO instead of plain GRPO?"**
 
-> "Mission rewards are sparse and the trajectory is 80 to 300 turns. Plain GRPO collapses without turn-level credit assignment. mtGRPO with Unsloth gives 2.5× throughput and stable gradients on long-horizon sparse-reward tasks. The reward curve in `docs/reward_curve.png` shows the gap."
+> "Mission rewards are sparse and the trajectory is 80 to 300 turns. Plain GRPO collapses without turn-level credit assignment. mtGRPO with Unsloth gives 2.5× throughput and stable gradients on long-horizon sparse-reward tasks. The reward curve in `docs/figures/reward_curve.png` shows the gap."
 
 **Q3: "Show me numbers."**
 
@@ -90,7 +90,7 @@ Followed immediately by `docs/rollout_compare.png` and `docs/demo.gif`. No parag
 
 ## 7. The first 10 seconds (visual-first)
 
-Don't open with a slide. Open with `docs/rollout_compare.png` already on the projector.
+Don't open with a slide. Open with `docs/figures/rollout_compare.png` already on the projector.
 
 1. Point at the **baseline** line — flat near zero.
 2. Point at the **trained** line — climbs to ~0.55 cumulative.

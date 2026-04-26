@@ -3,6 +3,7 @@ from __future__ import annotations
 import math
 import random
 import time
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -148,7 +149,9 @@ def main() -> None:
     plt.legend()
     plt.grid(True, alpha=0.3)
     plt.tight_layout()
-    plt.savefig("reward_curve.png", dpi=150)
+    _fig = Path(__file__).resolve().parent.parent / "docs" / "figures"
+    _fig.mkdir(parents=True, exist_ok=True)
+    plt.savefig(_fig / "reward_curve.png", dpi=150)
     plt.close()
 
     plt.figure(figsize=(10, 5))
@@ -164,10 +167,10 @@ def main() -> None:
     plt.legend()
     plt.grid(True, alpha=0.3)
     plt.tight_layout()
-    plt.savefig("loss_curve.png", dpi=150)
+    plt.savefig(_fig / "loss_curve.png", dpi=150)
     plt.close()
 
-    print("Saved reward_curve.png and loss_curve.png")
+    print(f"Saved {_fig / 'reward_curve.png'} and {_fig / 'loss_curve.png'}")
 
 
 if __name__ == "__main__":

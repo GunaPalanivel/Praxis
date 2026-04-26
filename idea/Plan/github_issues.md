@@ -430,16 +430,16 @@ ADR-19 + S35: Unsloth GRPO with multi-turn trajectory rewards (mtGRPO) — turn-
 
 ## Context
 
-Execute the run from #31 long enough to produce `docs/reward_curve.png`, `docs/loss_curve.png`, the 4th row in `docs/baseline_scores.md`, and `docs/training_links.md`. Target: ≥ 5× lift baseline → trained.
+Execute the run from #31 long enough to produce `docs/figures/reward_curve.png`, `docs/figures/loss_curve.png`, the 4th row in `docs/baseline_scores.md`, and `docs/training_links.md`. Target: ≥ 5× lift baseline → trained.
 
 ## What to do
 
 1. Run ≥ 50 mtGRPO steps with `cascading-platform-failure` + `single-service-alert` mix. Capture:
-   - `docs/reward_curve.png` (mean reward / step; trained vs random baseline on same axes).
-   - `docs/loss_curve.png` (loss / step).
+   - `docs/figures/reward_curve.png` (mean reward / step; trained vs random baseline on same axes).
+   - `docs/figures/loss_curve.png` (loss / step).
 2. Append row 4 (`Qwen-7B mtGRPO trained`) to `docs/baseline_scores.md`.
 3. Commit `docs/training_links.md` with Trackio + WandB public URLs.
-4. (Optional) `docs/rubric_attribution.png` bar chart of per-rubric contribution.
+4. (Optional) `docs/figures/rubric_attribution.png` bar chart of per-rubric contribution.
 
 ## Done when
 
@@ -478,14 +478,14 @@ ADR-16 / `FlawsToProduction/The Situation First.md` "Single Most Important Thing
 
 1. Run baseline Qwen-7B (no adapter) on `cascading-platform-failure` seed=2026; capture full text trajectory → `docs/rollout_baseline.txt`.
 2. Run trained adapter (from #32) on the same seed; capture → `docs/rollout_trained.txt`.
-3. Generate `docs/rollout_compare.png`: side-by-side per-turn cumulative reward chart from the two trajectories.
+3. Generate `docs/figures/rollout_compare.png`: side-by-side per-turn cumulative reward chart from the two trajectories.
 4. Generate `docs/demo.gif`: 8-second loop showing the cutoff banner + baseline vs trained reactions side-by-side. Use `asciinema` + `agg`, or screen-recorded mp4 → gif.
 5. Verify rollouts narratively (baseline never `create_plan`, trained calls `create_plan` + `save_finding` × 3 + `revise_plan`).
 
 ## Done when
 
 - [ ] All 4 assets committed under `docs/`.
-- [ ] `docs/rollout_compare.png` legible at 800px width.
+- [ ] `docs/figures/rollout_compare.png` legible at 800px width.
 - [ ] `docs/demo.gif` ≤ 5 MB.
 - [ ] README opens with both visuals (Issue #38).
 
@@ -671,7 +671,7 @@ Build a public HF Space hosting the FastAPI server; `tests/smoke_test.py` is the
 
 ## Context
 
-Storytelling 30%. README opens with `docs/rollout_compare.png` + `docs/demo.gif` + the 5-sentence pitch. Mini-blog and / or video < 2 min are mandatory deliverables (S2). Slide deck ≤ 5 slides per [`Demo/Narrative.md`](./Demo/Narrative.md) §3.
+Storytelling 30%. README opens with `docs/figures/rollout_compare.png` + `docs/demo.gif` + the 5-sentence pitch. Mini-blog and / or video < 2 min are mandatory deliverables (S2). Slide deck ≤ 5 slides per [`Demo/Narrative.md`](./Demo/Narrative.md) §3.
 
 ## What to do
 

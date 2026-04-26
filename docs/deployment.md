@@ -61,7 +61,10 @@ openenv validate
 
 ---
 
-## Notes
+## Local development: training and inference
 
-- The `.dockerignore` file excludes `idea/`, tests, caches, and local artifacts.
-- Local planning files in `idea/` are not required for deployment.
+`train_praxis_grpo.py` and `inference.py` can start uvicorn on `127.0.0.1` when
+`PRAXIS_URL` / `--base-url` is unreachable, **for convenience only** (use a
+supervised process in shared or multi-tenant hosting). In that case stderr is
+written to a temp file; the process path prints its path, and start-up failures
+embed a tail of the log in the `RuntimeError` message.

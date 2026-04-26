@@ -18,9 +18,9 @@ def parse_args() -> argparse.Namespace:
         default="checkpoints/praxis-grpo/metrics.csv",
         help="Path to metrics CSV emitted by train_praxis_grpo.py.",
     )
-    parser.add_argument("--out-reward", default="docs/reward_curve.png")
-    parser.add_argument("--out-loss", default="docs/loss_curve.png")
-    parser.add_argument("--out-rubric", default="docs/rubric_attribution.png")
+    parser.add_argument("--out-reward", default="docs/figures/reward_curve.png")
+    parser.add_argument("--out-loss", default="docs/figures/loss_curve.png")
+    parser.add_argument("--out-rubric", default="docs/figures/rubric_attribution.png")
     return parser.parse_args()
 
 

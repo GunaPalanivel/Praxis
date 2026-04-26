@@ -22,6 +22,6 @@
 
 - `docs/rollout_baseline.txt`
 - `docs/rollout_trained.txt`
-- `docs/rollout_compare.png`
+- `docs/figures/rollout_compare.png`
 - `checkpoints/praxis-grpo/run_manifest.json`
 - `checkpoints/praxis-grpo/metrics.csv`
