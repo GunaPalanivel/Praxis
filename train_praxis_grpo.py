@@ -659,6 +659,26 @@ def run_training(args: argparse.Namespace) -> int:
                 max_seq_length=4096,
                 load_in_4bit=True,
             )
+            # 4-bit weights are frozen; HF Trainer refuses pure-QLoRA-base fine-tuning
+            # without trainable adapters (GRPO updates policy weights).
+            model = fast_model.get_peft_model(
+                model,
+                r=16,
+                lora_alpha=16,
+                lora_dropout=0,
+                bias="none",
+                target_modules=(
+                    "q_proj",
+                    "k_proj",
+                    "v_proj",
+                    "o_proj",
+                    "gate_proj",
+                    "up_proj",
+                    "down_proj",
+                ),
+                use_gradient_checkpointing="unsloth",
+                random_state=int(args.seed),
+            )
         else:
             tokenizer = AutoTokenizer.from_pretrained(model_name)
             model = AutoModelForCausalLM.from_pretrained(model_name)
