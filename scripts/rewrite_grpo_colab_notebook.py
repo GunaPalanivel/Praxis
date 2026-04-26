@@ -86,6 +86,7 @@ The **CPU** path skips **GRPOTrainer** (`--smoke`) but still hits the live Space
         },
         {
             "cell_type": "code",
+            "execution_count": None,
             "id": "cell-install",
             "metadata": {"id": "cell-install"},
             "outputs": [],
@@ -98,6 +99,7 @@ The **CPU** path skips **GRPOTrainer** (`--smoke`) but still hits the live Space
         },
         {
             "cell_type": "code",
+            "execution_count": None,
             "id": "cell-clone",
             "metadata": {"id": "cell-clone"},
             "outputs": [],
@@ -125,6 +127,7 @@ The **CPU** path skips **GRPOTrainer** (`--smoke`) but still hits the live Space
         },
         {
             "cell_type": "code",
+            "execution_count": None,
             "id": "cell-config",
             "metadata": {"id": "cell-config"},
             "outputs": [],
@@ -154,6 +157,7 @@ The **CPU** path skips **GRPOTrainer** (`--smoke`) but still hits the live Space
         },
         {
             "cell_type": "code",
+            "execution_count": None,
             "id": "cell-api",
             "metadata": {"id": "cell-api"},
             "outputs": [],
@@ -183,6 +187,7 @@ The **CPU** path skips **GRPOTrainer** (`--smoke`) but still hits the live Space
         },
         {
             "cell_type": "code",
+            "execution_count": None,
             "id": "cell-http-helper",
             "metadata": {"id": "cell-http-helper"},
             "outputs": [],
@@ -257,6 +262,7 @@ The **CPU** path skips **GRPOTrainer** (`--smoke`) but still hits the live Space
         },
         {
             "cell_type": "code",
+            "execution_count": None,
             "id": "cell-train",
             "metadata": {"id": "cell-train"},
             "outputs": [],
@@ -351,6 +357,7 @@ The **CPU** path skips **GRPOTrainer** (`--smoke`) but still hits the live Space
         },
         {
             "cell_type": "code",
+            "execution_count": None,
             "id": "cell-save-logs",
             "metadata": {"id": "cell-save-logs"},
             "outputs": [],
@@ -370,6 +377,7 @@ The **CPU** path skips **GRPOTrainer** (`--smoke`) but still hits the live Space
         },
         {
             "cell_type": "code",
+            "execution_count": None,
             "id": "cell-plots",
             "metadata": {"id": "cell-plots"},
             "outputs": [],
@@ -412,6 +420,7 @@ The **CPU** path skips **GRPOTrainer** (`--smoke`) but still hits the live Space
         },
         {
             "cell_type": "code",
+            "execution_count": None,
             "id": "cell-judge-summary",
             "metadata": {"id": "cell-judge-summary"},
             "outputs": [],
@@ -439,6 +448,7 @@ The **CPU** path skips **GRPOTrainer** (`--smoke`) but still hits the live Space
         },
         {
             "cell_type": "code",
+            "execution_count": None,
             "id": "cell-download",
             "metadata": {"id": "cell-download"},
             "outputs": [],
