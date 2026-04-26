@@ -729,7 +729,9 @@ def run_training(args: argparse.Namespace) -> int:
         # TRL GRPOConfig requires ``generation_batch_size % num_generations == 0``; the
         # default derives batch 1 from micro-batch * steps_per_generation, which breaks
         # when ``num_generations`` > 1 (Issue production GRPO: group_size=8).
-        generation_batch_size = (num_gen * global_micro) // math.gcd(num_gen, global_micro)
+        generation_batch_size = (num_gen * global_micro) // math.gcd(
+            num_gen, global_micro
+        )
         grpo_config_kwargs: dict[str, Any] = dict(
             output_dir=str(CHECKPOINT_DIR),
             learning_rate=lr,
