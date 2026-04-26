@@ -162,6 +162,14 @@ Latest observed live run snapshot (2026-04-10):
 Scores can vary between runs based on model behavior and inference endpoint conditions.
 Run `python inference.py` to generate a fresh score snapshot.
 
+## Training Evidence Artifacts
+
+GRPO Colab evidence artifacts are committed at repo root:
+
+- `praxis_grpo_colab.ipynb` (TRL Colab notebook wired to Praxis over HTTP)
+- `reward_curve.png` (baseline vs trained comparison on same axes)
+- `loss_curve.png` (training loss curve)
+
 ### Inference Output Contract
 
 `inference.py` emits strict structured lines for judge parsing:
