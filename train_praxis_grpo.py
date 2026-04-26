@@ -4,8 +4,11 @@
 # dependencies = [
 #   "unsloth>=2024.10",
 #   "trl>=0.13.0",
-#   "transformers>=4.46.0",
-#   "wandb>=0.18.0",
+#   "transformers>=4.56.2,<5.0,!=4.57.0,!=4.57.4,!=4.57.5",
+#   "datasets>=2.20.0",
+#   "peft>=0.12.0",
+#   "mergekit>=0.0.4",
+#   "llm-blender>=0.0.2",
 #   "trackio>=0.1.0",
 #   "httpx>=0.27.0",
 # ]
@@ -41,6 +44,7 @@ import asyncio
 import concurrent.futures
 import csv
 import json
+import math
 import os
 import random
 import subprocess
@@ -117,7 +121,14 @@ def parse_args() -> argparse.Namespace:
         default=",".join(DEFAULT_TASKS),
         help="Comma-separated task names.",
     )
-    parser.add_argument("--num-generations", type=int, default=8)
+    parser.add_argument(
+        "--num-generations",
+        "--group-size",
+        dest="num_generations",
+        type=int,
+        default=8,
+        help="GRPO num_generations / group size (TRL GRPOConfig.num_generations). Default 8.",
+    )
     parser.add_argument("--max-turns", type=int, default=150)
     parser.add_argument(
         "--model",
@@ -235,15 +246,25 @@ async def _run_smoke_episode(
 
 
 def _init_wandb(run_name: str, enabled: bool) -> Any | None:
+    """Default off; opt-in only when ``WANDB_API_KEY`` is set in env.
+
+    The production-merge plan is Trackio-only (HF-native, uses ``HF_TOKEN``);
+    this stays callable for legacy invocations that explicitly export a
+    WandB key, and is otherwise a no-op that returns ``None`` so the rest
+    of the trainer continues with Trackio.
+    """
     if not enabled:
+        return None
+    if not os.getenv("WANDB_API_KEY", "").strip():
         return None
     try:
         import wandb  # type: ignore
     except Exception:
         return None
-    mode = "online"
-    run = wandb.init(project="praxis-mission-ops", name=run_name, mode=mode)
-    return run
+    try:
+        return wandb.init(project="praxis-mission-ops", name=run_name, mode="online")
+    except Exception:
+        return None
 
 
 def _set_wandb_public(run: Any | None) -> str | None:
@@ -262,16 +283,28 @@ def _set_wandb_public(run: Any | None) -> str | None:
 
 
 def _init_trackio(enabled: bool) -> Any | None:
+    """Initialize Trackio. Set ``TRACKIO_SPACE_ID`` (e.g. ``user/trackio``) to
+    sync metrics to a Hugging Face Space dashboard; absent the env var the run
+    is local-only.
+    """
     if not enabled:
         return None
     try:
         import trackio  # type: ignore
     except Exception:
         return None
+    space_id = os.getenv("TRACKIO_SPACE_ID", "").strip() or None
+    init_kwargs: dict[str, Any] = {"project": "praxis-mission-ops"}
+    if space_id:
+        init_kwargs["space_id"] = space_id
     try:
-        trackio.init(project="praxis-mission-ops")
+        trackio.init(**init_kwargs)
     except Exception:
         return None
+    if space_id:
+        print(f"[TRAIN] trackio_url=https://huggingface.co/spaces/{space_id}")
+    else:
+        print("[TRAIN] trackio: local-only (set TRACKIO_SPACE_ID to sync to a Space)")
     return trackio
 
 
@@ -306,6 +339,8 @@ def _save_checkpoint_manifest(
     wandb_url: str | None,
     task_metrics: dict[str, list[StepTelemetry]],
     extra: dict[str, Any] | None = None,
+    trackio_url: str | None = None,
+    hub_model_id: str | None = None,
 ) -> Path:
     CHECKPOINT_DIR.mkdir(parents=True, exist_ok=True)
     manifest = {
@@ -321,6 +356,8 @@ def _save_checkpoint_manifest(
         "seed": args.seed,
         "smoke": bool(args.smoke),
         "wandb_url": wandb_url,
+        "trackio_url": trackio_url,
+        "hub_model_id": hub_model_id or None,
         "summary": {
             task: {
                 "steps_observed": len(metrics),
@@ -419,17 +456,24 @@ def run_smoke(args: argparse.Namespace) -> int:
                 wandb_run.finish()
             except Exception:
                 pass
+        trackio_space = os.getenv("TRACKIO_SPACE_ID", "").strip()
+        trackio_url = (
+            f"https://huggingface.co/spaces/{trackio_space}"
+            if trackio_space and trackio_mod is not None
+            else None
+        )
         manifest = _save_checkpoint_manifest(
             args=args,
             run_name=run_name,
             wandb_url=wandb_url,
             task_metrics=task_metrics,
+            trackio_url=trackio_url,
         )
         metrics_csv = _save_metrics_csv(task_metrics)
         print(f"[SMOKE] checkpoint_manifest={manifest.as_posix()}")
         print(f"[SMOKE] metrics_csv={metrics_csv.as_posix()}")
-        if wandb_url:
-            print(f"[SMOKE] wandb_url={wandb_url}")
+        if trackio_url:
+            print(f"[SMOKE] trackio_url={trackio_url}")
         return 0
     finally:
         if server_proc is not None:
@@ -615,6 +659,26 @@ def run_training(args: argparse.Namespace) -> int:
                 max_seq_length=4096,
                 load_in_4bit=True,
             )
+            # 4-bit weights are frozen; HF Trainer refuses pure-QLoRA-base fine-tuning
+            # without trainable adapters (GRPO updates policy weights).
+            model = fast_model.get_peft_model(
+                model,
+                r=16,
+                lora_alpha=16,
+                lora_dropout=0,
+                bias="none",
+                target_modules=(
+                    "q_proj",
+                    "k_proj",
+                    "v_proj",
+                    "o_proj",
+                    "gate_proj",
+                    "up_proj",
+                    "down_proj",
+                ),
+                use_gradient_checkpointing="unsloth",
+                random_state=int(args.seed),
+            )
         else:
             tokenizer = AutoTokenizer.from_pretrained(model_name)
             model = AutoModelForCausalLM.from_pretrained(model_name)
@@ -656,10 +720,24 @@ def run_training(args: argparse.Namespace) -> int:
                 rewards.append(score)
             return rewards
 
-        grpo_config = GRPOConfig(
+        hub_model_id = os.getenv("HF_HUB_MODEL_ID", "").strip()
+        num_gen = int(args.num_generations)
+        per_device_train_batch_size = 1
+        _ws = os.environ.get("WORLD_SIZE", "").strip()
+        num_processes = max(1, int(_ws)) if _ws else 1
+        global_micro = per_device_train_batch_size * num_processes
+        # TRL GRPOConfig requires ``generation_batch_size % num_generations == 0``; the
+        # default derives batch 1 from micro-batch * steps_per_generation, which breaks
+        # when ``num_generations`` > 1 (Issue production GRPO: group_size=8).
+        generation_batch_size = (num_gen * global_micro) // math.gcd(
+            num_gen, global_micro
+        )
+        grpo_config_kwargs: dict[str, Any] = dict(
             output_dir=str(CHECKPOINT_DIR),
             learning_rate=lr,
-            per_device_train_batch_size=1,
+            num_generations=num_gen,
+            generation_batch_size=generation_batch_size,
+            per_device_train_batch_size=per_device_train_batch_size,
             gradient_accumulation_steps=1,
             num_train_epochs=1,
             max_steps=int(args.steps),
@@ -667,9 +745,20 @@ def run_training(args: argparse.Namespace) -> int:
             max_completion_length=256,
             logging_steps=1,
             save_steps=max(1, int(args.steps) // 2),
-            report_to=[],
+            report_to=["trackio"] if trackio_mod is not None else [],
             seed=seed,
         )
+        # Hub push is gated on ``HF_HUB_MODEL_ID`` so local runs stay offline;
+        # HF Jobs invocations supply the env var so the trained checkpoint
+        # persists past the ephemeral container.
+        if hub_model_id:
+            grpo_config_kwargs.update(
+                push_to_hub=True,
+                hub_model_id=hub_model_id,
+                hub_strategy="every_save",
+            )
+            print(f"[TRAIN] hub_model_id={hub_model_id} push_to_hub=True")
+        grpo_config = GRPOConfig(**grpo_config_kwargs)
 
         trainer_kwargs = {
             "model": model,
@@ -726,12 +815,20 @@ def run_training(args: argparse.Namespace) -> int:
         }
 
         wandb_url = _set_wandb_public(wandb_run)
+        trackio_space = os.getenv("TRACKIO_SPACE_ID", "").strip()
+        trackio_url = (
+            f"https://huggingface.co/spaces/{trackio_space}"
+            if trackio_space and trackio_mod is not None
+            else None
+        )
         manifest = _save_checkpoint_manifest(
             args=args,
             run_name=run_name,
             wandb_url=wandb_url,
             task_metrics=task_metrics,
             extra=extra,
+            trackio_url=trackio_url,
+            hub_model_id=hub_model_id or None,
         )
         metrics_csv = _save_metrics_csv(task_metrics)
         print(f"[TRAIN] checkpoint_manifest={manifest.as_posix()}")
@@ -740,8 +837,10 @@ def run_training(args: argparse.Namespace) -> int:
         print(f"[TRAIN] trained_mean_reward={trained_mean:.6f}")
         if extra.get("reward_lift") is not None:
             print(f"[TRAIN] reward_lift={float(extra['reward_lift']):.4f}x")
-        if wandb_url:
-            print(f"[TRAIN] wandb_url={wandb_url}")
+        if trackio_url:
+            print(f"[TRAIN] trackio_url={trackio_url}")
+        if hub_model_id:
+            print(f"[TRAIN] hub_repo=https://huggingface.co/{hub_model_id}")
         return 0
     finally:
         if wandb_run is not None:

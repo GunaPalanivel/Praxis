@@ -36,6 +36,11 @@ class TestOptimalPath:
       diagnose bad_config   -> 0.20
       rollback_deploy auth  -> 0.25 + efficiency_bonus (resolved)
       Total: includes efficiency_bonus_max on the terminal step.
+
+    Direct ``scenario.step`` calls bypass the server's ``_step_count`` increment,
+    so the reward engine sees ``step_number=1`` for every step here, yielding
+    the maximum bonus ``efficiency_bonus_max * (1 - 1/MAX_STEPS)`` = 0.1*(14/15)
+    for this 15-step task.
     """
 
     OPTIMAL_COMMANDS = [
@@ -44,7 +49,7 @@ class TestOptimalPath:
         "diagnose root_cause=bad_config",
         "rollback_deploy service=auth",
     ]
-    EXPECTED_REWARDS = [0.08, 0.10, 0.20, 0.2966666666666667]
+    EXPECTED_REWARDS = [0.08, 0.10, 0.20, 0.25 + 0.1 * (14 / 15)]
 
     def test_optimal_path_rewards(self):
         s = make_scenario()
@@ -84,7 +89,7 @@ class TestOptimalPath:
     def test_total_optimal_score(self):
         s = make_scenario()
         total = sum(step_cmd(s, cmd).reward for cmd in self.OPTIMAL_COMMANDS)
-        assert total == pytest.approx(0.6766666666666667, abs=1e-6)
+        assert total == pytest.approx(0.63 + 0.1 * (14 / 15), abs=1e-6)
 
 
 # ── 2. Determinism ────────────────────────────────────────────────────────────
@@ -218,7 +223,7 @@ class TestEscalationLogic:
         outcome = step_cmd(
             s, "escalate reason=config typo in db hostname at 14:23 deploy"
         )
-        assert outcome.reward == pytest.approx(0.19666666666666666)
+        assert outcome.reward == pytest.approx(0.15 + 0.1 * (14 / 15), abs=1e-6)
         assert outcome.done is True
 
     def test_escalate_without_enough_evidence(self):
