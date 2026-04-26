@@ -190,7 +190,7 @@ Run `python inference.py` to generate a fresh score snapshot.
 
 ## Training Evidence Artifacts
 
-Plots and judge-facing figures are under **[`docs/figures/`](docs/figures/)** (see [`docs/figures/README.md`](docs/figures/README.md) for a file index).
+Plots and judge-facing figures are under **[`docs/figures/`](docs/figures/)** (see [`docs/figures/README.md`](docs/figures/README.md) for a file index). **Latest Colab / training run exports** (curves, logs, traces) are in **[`colabresults/`](colabresults/README.md)** at the repo root.
 
 - `praxis_grpo_colab.ipynb` (TRL Colab notebook wired to Praxis over HTTP; saves into `docs/figures/`)
 - `docs/figures/reward_curve.png` (baseline vs trained comparison on same axes)
