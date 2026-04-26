@@ -112,7 +112,10 @@ def ensure_local_uvicorn(
             )
             raise RuntimeError(msg)
         try:
-            if httpx.get(f"{base_url.rstrip('/')}/health", timeout=1.0).status_code == 200:
+            if (
+                httpx.get(f"{base_url.rstrip('/')}/health", timeout=1.0).status_code
+                == 200
+            ):
                 print(healthy_message, flush=True)
                 print(f"[praxis] Server stderr: {log_path}", flush=True)
                 return (proc, log_path)

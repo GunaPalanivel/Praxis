@@ -17,7 +17,10 @@ import re
 import statistics
 from dataclasses import dataclass
 
-from praxis_env.server_bootstrap import close_server_process_stderr, ensure_local_uvicorn
+from praxis_env.server_bootstrap import (
+    close_server_process_stderr,
+    ensure_local_uvicorn,
+)
 
 from openai import OpenAI
 
