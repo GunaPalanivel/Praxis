@@ -22,7 +22,7 @@ pinned: false
 - Colab: [open `praxis_grpo_colab.ipynb` in Colab](https://colab.research.google.com/github/GunaPalanivel/Praxis/blob/main/praxis_grpo_colab.ipynb) (canonical: `https://colab.research.google.com/github/GunaPalanivel/Praxis/blob/main/praxis_grpo_colab.ipynb`)
 - Source: [https://github.com/GunaPalanivel/Praxis](https://github.com/GunaPalanivel/Praxis)
 - YouTube (demo screencast; replace with your public link): [https://www.youtube.com/watch?v=REPLACE_WITH_PUBLIC_ID](https://www.youtube.com/watch?v=REPLACE_WITH_PUBLIC_ID)
-- WandB / Trackio: public run URL (after `wandb` login) — also duplicated in this README once available; if missing, see `wandb_url` in [`checkpoints/praxis-grpo/run_manifest.json`](checkpoints/praxis-grpo/run_manifest.json) after a successful logged run, or [docs/training_links.md](docs/training_links.md)
+- Trackio dashboard (production GRPO run): _<TBD: filled in after the HF Jobs run completes; see `trackio_url` in [`checkpoints/praxis-grpo/run_manifest.json`](checkpoints/praxis-grpo/run_manifest.json) and [docs/training_links.md](docs/training_links.md)>_. WandB is not used on this branch (`_init_wandb` is a no-op stub); set `TRACKIO_SPACE_ID=gp5901/trackio` and submit via [`scripts/submit_hf_grpo_job.py`](scripts/submit_hf_grpo_job.py).
 - **Colab run exports (repo root):** [`colabresults/`](colabresults/README.md) — latest curves, `jsonl`/`csv` logs, rollout traces, and [`colabresults/eval_checkpoints.json`](colabresults/eval_checkpoints.json) in one place for quick review.
 
 **TRL training (`train_praxis_grpo.py`, non-smoke):** the GRPO `reward_func` runs a **trajectory** per completion: one `reset` per row, then one `/step` per non-empty line of the model output (in order, capped by `--max-turns`), or a single step when the model emits one line. The scalar label prefers the server’s ADR-20 `final_score` on `/state` when the episode is terminal, otherwise the mean of per-step rewards. Use an external Praxis process in production; local auto-start writes uvicorn stderr to a temp file (see [docs/deployment.md](docs/deployment.md)).
@@ -199,7 +199,25 @@ flowchart LR
 
 ### GRPO smoke run vs baseline (explanation for merge review)
 
-On the early April 26 smoke GRPO evidence (before updated `lr=1e-4` and longer runs), **only `single-service-alert` clearly improved**; three tasks regressed, which matches short CPU smoke training and aggressive settings. A **200+ episode GPU run** with `train_praxis_grpo.py --learning-rate 1e-4` and the current reward (`efficiency_bonus_max=0.05` floor in policy) is the intended way to re-check all four. See [`colabresults/eval_checkpoints.json`](colabresults/eval_checkpoints.json) for stored checkpoint means and [docs/training_evolution.md](docs/training_evolution.md) for the narrative.
+On the early April 26 smoke GRPO evidence (before updated `lr=1e-4` and longer runs), **only `single-service-alert` clearly improved**; three tasks regressed, which matches short CPU smoke training and aggressive settings. The **200+ episode GPU run** with `train_praxis_grpo.py --learning-rate 1e-4 --group-size 8` and the current reward (`efficiency_bonus_max=0.1` floor in policy) is the intended way to re-check all four — submit it via [`scripts/submit_hf_grpo_job.py`](scripts/submit_hf_grpo_job.py); see [`scripts/README.md`](scripts/README.md) and [`docs/training_links.md`](docs/training_links.md) for the one-command flow. See [`colabresults/eval_checkpoints.json`](colabresults/eval_checkpoints.json) for stored checkpoint means and [docs/training_evolution.md](docs/training_evolution.md) for the narrative.
+
+### Production GRPO run (HF Jobs)
+
+_Pending the HF Jobs run; this section is filled in by the same PR commit that lands `colabresults/grpo_full_run/`._
+
+| Task                 | Baseline (smoke) | Trained (GPU run) | &Delta; |
+| -------------------- | ---------------: | ----------------: | ------: |
+| single-service-alert |               TBD |               TBD |     TBD |
+| ambiguous-incident   |               TBD |               TBD |     TBD |
+| cascading-failure    |               TBD |               TBD |     TBD |
+| memory-leak          |               TBD |               TBD |     TBD |
+| **Mean (4 tasks)**   |               TBD |               TBD |     TBD |
+
+Verification artifacts after the run:
+
+- Trackio dashboard: TBD (also recorded in `trackio_url` of `run_manifest.json`).
+- Hub model + checkpoints: TBD (also recorded in `hub_model_id` of `run_manifest.json`).
+- Per-task metrics CSV + manifest: `colabresults/grpo_full_run/{metrics.csv,run_manifest.json}`.
 
 ## Training Evidence Artifacts
 
