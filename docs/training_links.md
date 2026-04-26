@@ -66,6 +66,13 @@ Recent jobs:
 | [`69edcfdad2c8bd8662bcfa07`](https://huggingface.co/jobs/gp5901/69edcfdad2c8bd8662bcfa07) | **Failed** — trainer import (`No module named 'mergekit'`). Fixed by declaring `mergekit` / `llm-blender` and compatible `transformers` in the trainer PEP 723 header. |
 | [`69edd94dd2c8bd8662bcfb08`](https://huggingface.co/jobs/gp5901/69edd94dd2c8bd8662bcfb08) | **Good path** — reaches GRPO training loop (Trackio + Hub as above).                                                                                                   |
 
+## Colab (`praxis_grpo_colab.ipynb`) — judge re-run
+
+1. Open the notebook from the repo (Colab badge in [`README.md`](../README.md)).
+2. **Use a GPU runtime (T4+)** and **Run all** so the default path runs **`uv run train_praxis_grpo.py`** *without* `--smoke` (short TRL GRPO: 2 steps, minimal dataset) — you get **real** `trl` / Unsloth training **loss** plus **reward** in `metrics.csv` and the generated PNGs.
+3. CPU-only falls back to `--smoke` (live Space HTTP, no `GRPOTrainer`); switch to GPU for the TRL requirement.
+4. Regenerate the `.ipynb` from the maintainer script after changing the contract: `python scripts/rewrite_grpo_colab_notebook.py`.
+
 When you need long smoke curves without a TRL install, re-run a stacked smoke (raise local rate limits if you hit 429 on `/step`):
 
 ```bash

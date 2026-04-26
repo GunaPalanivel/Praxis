@@ -15,20 +15,23 @@ def main() -> None:
     root = Path(__file__).resolve().parents[1]
     nb_path = root / "praxis_grpo_colab.ipynb"
 
-    md_intro = r"""# Praxis GRPO — Judge evidence (canonical `train_praxis_grpo.py`)
+    md_intro = r"""# Praxis GRPO — Judge evidence (`train_praxis_grpo.py` + **HF TRL / Unsloth**)
 
-This notebook runs the **same Python entrypoint** as production and [HF Jobs](https://huggingface.co/docs/huggingface_hub/main/en/guides/hf_jobs): [`train_praxis_grpo.py`](https://github.com/GunaPalanivel/Praxis/blob/main/train_praxis_grpo.py).
+**Easy run (judges):** **Runtime → Change runtime type → GPU (T4 or better) → Save**, then **Runtime → Run all**.  
+First run downloads deps via `uv` (~10–25 min). You get **`metrics.csv` + `reward_curve.png` + `loss_curve.png`** with **real GRPO training loss** from `trl.GRPOTrainer` (same stack as [HF Jobs](https://huggingface.co/docs/huggingface_hub/main/en/guides/hf_jobs)).
 
-| Mode | When to use | Command shape |
-| ---- | ----------- | ------------- |
-| **Quick (default)** | CPU or short Colab session; proves HTTP + metrics + plots | `--smoke` with `--steps` / `--smoke-episodes` (hits live Space, no local server) |
-| **Full TRL GRPO** | Colab **GPU** (e.g. T4/A100), 30–90+ min first `uv` resolve | Omit `--smoke`; `--steps 200 --learning-rate 1e-4 --group-size 8 --max-turns 150` (matches `scripts/submit_hf_grpo_job.py`) |
+| Runtime | What runs | Meets “TRL + evidence plots” |
+| ------- | ---------- | ------------------------------ |
+| **GPU (default)** | `uv run train_praxis_grpo.py` **without** `--smoke`: **2** optimizer steps, `--dataset-repeats 1`, one task, `max_turns=45` (short rollouts) | **Yes** — Unsloth 4-bit + LoRA + TRL GRPO, live Space reward |
+| **CPU only** | Same script with `--smoke` (HTTP env loop, **no** `GRPOTrainer`) | **Partially** — proves live Space + CSV/plots; enable GPU for TRL |
 
-**Reward contract (same as repo README):** `reward_func` drives **HTTP** `POST /reset` then `POST /step` against **`https://gp5901-praxis.hf.space`**. Smoke uses deterministic fallback commands per step; full training samples model completions and executes each line as a command up to `--max-turns`.
+**Long production run (optional):** set env **`PRAXIS_COLAB_FULL=1`** (GPU) before the train cell for `--steps 200` and all four tasks (`scripts/submit_hf_grpo_job.py` parity). Expect long runtime + heavy `uv` resolve.
 
-**Outputs (under `checkpoints/praxis-grpo/` in the cloned repo):** `metrics.csv`, `run_manifest.json` — copied to `/content` for download. Plots are generated from `metrics.csv` (**reward** and **loss** columns; smoke loss is a stable surrogate `max(0, 1-reward)` per trainer code).
+**Reward contract:** full TRL path uses `reward_func` → HTTPS `POST /reset` / `POST /step` on **`https://gp5901-praxis.hf.space`**. Smoke uses fixed fallback commands per step.
 
-Optional: set Colab secrets **`HF_TOKEN`** + env **`TRACKIO_SPACE_ID=gp5901/trackio`** before the run cell to mirror HF-native logging (omit `--no-wandb` then).
+**Outputs:** `checkpoints/praxis-grpo/metrics.csv` and `run_manifest.json` → copied to `/content/`. Plots read **reward** and **loss** from CSV (TRL loss is real; smoke loss is `max(0, 1-reward)`).
+
+**Trackio (optional):** Colab secrets **`HF_TOKEN`** + **`TRACKIO_SPACE_ID=gp5901/trackio`**, and remove **`--no-wandb`** from the train cell if you want Hub dashboard sync.
 """
 
     md_flow = r"""## Data flow (canonical training)
@@ -51,7 +54,7 @@ flowchart TB
     RUB -->|reward info| RF
 ```
 
-Smoke path skips **GRPOTrainer** but keeps the **same HTTP env + metrics CSV + manifest** so judges still see real rewards from **`gp5901-praxis.hf.space`**.
+The **CPU** path skips **GRPOTrainer** (`--smoke`) but still hits the live Space for real HTTP rewards. The **GPU** path matches the diagram (TRL + `reward_func` + Space).
 """
 
     cells: list[dict] = [
@@ -120,16 +123,25 @@ Smoke path skips **GRPOTrainer** but keeps the **same HTTP env + metrics CSV + m
             "outputs": [],
             "source": _src(
                 [
-                    "# Defaults aligned with train_praxis_grpo.parse_args + scripts/submit_hf_grpo_job.py",
+                    "# Defaults: GPU → real TRL+Unsloth GRPO (tiny run). CPU → smoke only.",
                     "import os",
                     "",
                     "PRAXIS_BASE_URL = os.environ.get(\"PRAXIS_URL\", \"https://gp5901-praxis.hf.space\")",
-                    "TASKS_ARG = \"single-service-alert,ambiguous-incident,cascading-failure,memory-leak\"",
+                    "TASKS_ALL = \"single-service-alert,ambiguous-incident,cascading-failure,memory-leak\"",
                     "SEED = int(os.environ.get(\"PRAXIS_SEED\", \"2026\"))",
-                    "# PRAXIS_COLAB_QUICK=1 (default): smoke run, CPU-friendly. Set PRAXIS_COLAB_QUICK=0 on GPU for full TRL GRPO.",
-                    "QUICK = os.environ.get(\"PRAXIS_COLAB_QUICK\", \"1\").lower() in (\"1\", \"true\", \"yes\")",
+                    "try:",
+                    "    import torch",
+                    "",
+                    "    HAS_GPU = bool(torch.cuda.is_available())",
+                    "except Exception:",
+                    "    HAS_GPU = False",
+                    "FORCE_SMOKE = os.environ.get(\"PRAXIS_COLAB_FORCE_SMOKE\", \"\").lower() in (\"1\", \"true\", \"yes\")",
+                    "FULL_RUN = os.environ.get(\"PRAXIS_COLAB_FULL\", \"\").lower() in (\"1\", \"true\", \"yes\")",
+                    "USE_TRL = HAS_GPU and not FORCE_SMOKE",
                     "print(\"PRAXIS_BASE_URL:\", PRAXIS_BASE_URL)",
-                    "print(\"QUICK (smoke):\", QUICK)",
+                    "print(\"HAS_GPU:\", HAS_GPU, \"| USE_TRL_GRPO:\", USE_TRL, \"| PRAXIS_COLAB_FULL:\", FULL_RUN)",
+                    "if not HAS_GPU:",
+                    "    print(\"Tip: Runtime → Change runtime type → GPU, then Run all, for HF TRL + Unsloth evidence.\")",
                 ]
             ),
         },
@@ -157,7 +169,7 @@ Smoke path skips **GRPOTrainer** but keeps the **same HTTP env + metrics CSV + m
             "outputs": [],
             "source": _src(
                 [
-                    "# Run canonical trainer via uv (installs PEP 723 stack: trl, unsloth, …)",
+                    "# Run canonical trainer via uv (PEP 723: trl, unsloth, transformers, …)",
                     "import os, shutil, subprocess, sys",
                     "from pathlib import Path",
                     "",
@@ -168,30 +180,64 @@ Smoke path skips **GRPOTrainer** but keeps the **same HTTP env + metrics CSV + m
                     "env = os.environ.copy()",
                     "env[\"PRAXIS_URL\"] = PRAXIS_BASE_URL",
                     "",
-                    "base_cmd = [",
-                    "    \"uv\",",
-                    "    \"run\",",
-                    "    str(trainer),",
-                    "    \"--tasks\",",
-                    "    TASKS_ARG,",
+                    "common_tail = [",
                     "    \"--learning-rate\",",
                     "    \"1e-4\",",
                     "    \"--group-size\",",
                     "    \"8\",",
-                    "    \"--max-turns\",",
-                    "    \"150\",",
                     "    \"--model\",",
                     "    \"qwen-7b\",",
                     "    \"--base-url\",",
                     "    PRAXIS_BASE_URL,",
                     "    \"--seed\",",
                     "    str(SEED),",
+                    "    \"--no-wandb\",",
                     "]",
                     "",
-                    "if QUICK:",
-                    "    cmd = base_cmd + [\"--smoke\", \"--smoke-episodes\", \"2\", \"--steps\", \"25\", \"--no-wandb\"]",
+                    "if USE_TRL:",
+                    "    if FULL_RUN:",
+                    "        cmd = [",
+                    "            \"uv\",",
+                    "            \"run\",",
+                    "            str(trainer),",
+                    "            \"--steps\",",
+                    "            \"200\",",
+                    "            \"--max-turns\",",
+                    "            \"150\",",
+                    "            \"--tasks\",",
+                    "            TASKS_ALL,",
+                    "            *common_tail,",
+                    "        ]",
+                    "    else:",
+                    "        # Minimal real GRPOTrainer run (judges: TRL + Unsloth + live reward)",
+                    "        cmd = [",
+                    "            \"uv\",",
+                    "            \"run\",",
+                    "            str(trainer),",
+                    "            \"--steps\",",
+                    "            \"2\",",
+                    "            \"--dataset-repeats\",",
+                    "            \"1\",",
+                    "            \"--tasks\",",
+                    "            \"single-service-alert\",",
+                    "            \"--max-turns\",",
+                    "            \"45\",",
+                    "            *common_tail,",
+                    "        ]",
                     "else:",
-                    "    cmd = base_cmd + [\"--steps\", \"200\"]",
+                    "    cmd = [",
+                    "        \"uv\",",
+                    "        \"run\",",
+                    "        str(trainer),",
+                    "        \"--smoke\",",
+                    "        \"--smoke-episodes\",",
+                    "        \"2\",",
+                    "        \"--steps\",",
+                    "        \"25\",",
+                    "        \"--tasks\",",
+                    "        TASKS_ALL,",
+                    "        *common_tail,",
+                    "    ]",
                     "",
                     "print(\"$\", \" \".join(cmd))",
                     "rc = subprocess.run(cmd, cwd=str(repo), env=env).returncode",
@@ -246,7 +292,17 @@ Smoke path skips **GRPOTrainer** but keeps the **same HTTP env + metrics CSV + m
                     "fig, (ax0, ax1) = plt.subplots(2, 1, figsize=(11, 7), sharex=True)",
                     "ax0.plot(df[\"row\"], pd.to_numeric(df[\"reward\"], errors=\"coerce\"), color=\"#2563eb\", lw=1.2)",
                     "ax0.set_ylabel(\"Reward\")",
-                    "ax0.set_title(\"Praxis training — reward (from metrics.csv)\")",
+                    "title = \"Praxis — reward (metrics.csv)\"",
+                    "try:",
+                    "    import json",
+                    "",
+                    "    mf = Path(\"/content/Praxis/checkpoints/praxis-grpo/run_manifest.json\")",
+                    "    if mf.is_file():",
+                    "        meta = json.loads(mf.read_text(encoding=\"utf-8\"))",
+                    "        title += \" | smoke=\" + str(meta.get(\"smoke\"))",
+                    "except Exception:",
+                    "    pass",
+                    "ax0.set_title(title)",
                     "ax1.plot(df[\"row\"], pd.to_numeric(df[\"loss\"], errors=\"coerce\"), color=\"#7c3aed\", lw=1.2)",
                     "ax1.set_ylabel(\"Loss\")",
                     "ax1.set_xlabel(\"Logged row index\")",
