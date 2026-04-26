@@ -48,4 +48,7 @@ def test_build_training_rows_repeats() -> None:
     tasks = Counter(r["task_name"] for r in rows)
     assert tasks["single-service-alert"] == 3
     assert tasks["cascading-failure"] == 3
-    assert all("single-service-alert" in r["prompt"] or "cascading" in r["prompt"] for r in rows)
+    assert all(
+        "single-service-alert" in r["prompt"] or "cascading" in r["prompt"]
+        for r in rows
+    )
