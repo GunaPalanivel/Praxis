@@ -62,3 +62,27 @@ def test_optimal_path(scenario):
     assert out.done
     assert scenario._incident_resolved
     assert sum(rewards) == pytest.approx(0.475, abs=1e-6)
+
+
+def test_query_logs_worker_includes_rootly_excerpt(scenario):
+    out = scenario.step(
+        ParsedCommand(action_type="query_logs", params={"service": "worker"})
+    )
+    assert "[VENDORED LOG EXCERPT: worker]" in out.investigation_result
+    assert "Source: praxis:fixtures/logs/worker" in out.investigation_result
+
+
+def test_rootly_excerpt_deterministic_across_resets():
+    first = MemoryLeakScenario(seed=42)
+    first.reset("ep1")
+    first_out = first.step(
+        ParsedCommand(action_type="query_logs", params={"service": "worker"})
+    )
+
+    second = MemoryLeakScenario(seed=42)
+    second.reset("ep2")
+    second_out = second.step(
+        ParsedCommand(action_type="query_logs", params={"service": "worker"})
+    )
+
+    assert first_out.investigation_result == second_out.investigation_result

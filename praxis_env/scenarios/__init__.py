@@ -55,6 +55,8 @@ def get_scenario(
         )
     if task_name == "cascading-platform-failure":
         return SCENARIO_REGISTRY[task_name](seed=seed)
+    if task_name == "memory-leak":
+        return SCENARIO_REGISTRY[task_name](seed=seed)
     return SCENARIO_REGISTRY[task_name]()
 
 

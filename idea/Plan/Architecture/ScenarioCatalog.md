@@ -18,7 +18,7 @@
 | 1   | `single-service-alert`       | easy          | 15          | n/a (≥15)     | ~0.63          | shipped                |
 | 2   | `ambiguous-incident`         | medium        | 25          | 30 (n/a)      | ~0.71          | shipped                |
 | 3   | `cascading-failure`          | hard          | 20          | 30 (n/a)      | ~0.46          | shipped                |
-| 4   | `memory-leak`                | hard          | 25          | 20            | ~0.48          | shipped + Rootly artifacts (Issue #27) |
+| 4   | `memory-leak`                | hard          | 25          | 20            | ~0.48          | shipped + Rootly artifacts (Issue #39) |
 | 5   | `cascading-platform-failure` | mission       | 150         | 30            | ~0.55          | **MissionOps (Issues #25, #26, #27)** |
 | 6   | `procedural-incident`        | easy/med/hard | 15/25/50    | 8/15/25       | scaled         | shipped (Issue #8)     |
 
