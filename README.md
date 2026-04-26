@@ -21,16 +21,15 @@ pinned: false
 - Space writeup: [Blog.MD on the Space repo](https://huggingface.co/spaces/gp5901/praxis/blob/main/Blog.MD) (mirrored in GitHub as [Blog.MD](https://github.com/GunaPalanivel/Praxis/blob/main/Blog.MD))
 - Colab: [open `praxis_grpo_colab.ipynb` in Colab](https://colab.research.google.com/github/GunaPalanivel/Praxis/blob/main/praxis_grpo_colab.ipynb) (canonical: `https://colab.research.google.com/github/GunaPalanivel/Praxis/blob/main/praxis_grpo_colab.ipynb`)
 - Source: [https://github.com/GunaPalanivel/Praxis](https://github.com/GunaPalanivel/Praxis)
-- YouTube (demo screencast; replace with your public link): [https://www.youtube.com/watch?v=REPLACE_WITH_PUBLIC_ID](https://www.youtube.com/watch?v=REPLACE_WITH_PUBLIC_ID)
-- Trackio dashboard (production GRPO run): _<TBD: filled in after the HF Jobs run completes; see `trackio_url` in [`checkpoints/praxis-grpo/run_manifest.json`](checkpoints/praxis-grpo/run_manifest.json) and [docs/training_links.md](docs/training_links.md)>_. WandB is not used on this branch (`_init_wandb` is a no-op stub); set `TRACKIO_SPACE_ID=gp5901/trackio` and submit via [`scripts/submit_hf_grpo_job.py`](scripts/submit_hf_grpo_job.py).
+- Trackio dashboard (production GRPO): [https://gp5901-trackio.hf.space/](https://gp5901-trackio.hf.space/) (live metrics). Space repo: [https://huggingface.co/spaces/gp5901/trackio](https://huggingface.co/spaces/gp5901/trackio). WandB is not used on this branch (`_init_wandb` is a no-op stub); set `TRACKIO_SPACE_ID=gp5901/trackio` and submit via [`scripts/submit_hf_grpo_job.py`](scripts/submit_hf_grpo_job.py).
 - **Colab run exports (repo root):** [`colabresults/`](colabresults/README.md) — latest curves, `jsonl`/`csv` logs, rollout traces, and [`colabresults/eval_checkpoints.json`](colabresults/eval_checkpoints.json) in one place for quick review.
 
 **TRL training (`train_praxis_grpo.py`, non-smoke):** the GRPO `reward_func` runs a **trajectory** per completion: one `reset` per row, then one `/step` per non-empty line of the model output (in order, capped by `--max-turns`), or a single step when the model emits one line. The scalar label prefers the server’s ADR-20 `final_score` on `/state` when the episode is terminal, otherwise the mean of per-step rewards. Use an external Praxis process in production; local auto-start writes uvicorn stderr to a temp file (see [docs/deployment.md](docs/deployment.md)).
 
 ### Plots (same files the notebook and scripts point at)
 
-| Rollout compare (static) | Before/after motion (8s loop) |
-| --- | --- |
+| Rollout compare (static)                                              | Before/after motion (8s loop)   |
+| --------------------------------------------------------------------- | ------------------------------- |
 | ![Before and after rollout compare](docs/figures/rollout_compare.png) | ![docs/demo.gif](docs/demo.gif) |
 
 Caption: baseline vs trained on one chart; GIF highlights the same comparison. Full log is in [docs/training_evolution.md](docs/training_evolution.md).
@@ -180,22 +179,22 @@ flowchart LR
 `python inference.py --model random --runs 1` per task (local `PRAXIS_URL` server, seed 2026). Stochastic: re-run to refresh; live HF Space scores can differ when using `--model router` with a hosted model.
 
 | Task                 | Difficulty | Mean score (one run) |
-| -------------------- | ---------- | --------------------: |
-| single-service-alert | Easy       | 0.122 |
-| ambiguous-incident | Medium     | 0.010 |
-| cascading-failure    | Hard       | 0.441 |
-| memory-leak          | Hard       | 0.010 |
-| **Mean (4 tasks)**   | —          | 0.146 |
+| -------------------- | ---------- | -------------------: |
+| single-service-alert | Easy       |                0.122 |
+| ambiguous-incident   | Medium     |                0.010 |
+| cascading-failure    | Hard       |                0.441 |
+| memory-leak          | Hard       |                0.010 |
+| **Mean (4 tasks)**   | —          |                0.146 |
 
 ### Live Space reference (Qwen2.5-72B, earlier pull)
 
 | Task                 | Difficulty | Steps | Score (2026-04-10) |
 | -------------------- | ---------- | ----- | -----------------: |
-| single-service-alert | Easy       | 5     | 0.092 |
-| cascading-failure    | Hard       | 20    | 0.041 |
-| ambiguous-incident   | Medium     | 25    | 0.020 |
-| memory-leak          | Hard       | 5     | 0.095 |
-| Mean task score      | -          | -     | 0.062 |
+| single-service-alert | Easy       | 5     |              0.092 |
+| cascading-failure    | Hard       | 20    |              0.041 |
+| ambiguous-incident   | Medium     | 25    |              0.020 |
+| memory-leak          | Hard       | 5     |              0.095 |
+| Mean task score      | -          | -     |              0.062 |
 
 ### GRPO smoke run vs baseline (explanation for merge review)
 
@@ -203,21 +202,23 @@ On the early April 26 smoke GRPO evidence (before updated `lr=1e-4` and longer r
 
 ### Production GRPO run (HF Jobs)
 
-_Pending the HF Jobs run; this section is filled in by the same PR commit that lands `colabresults/grpo_full_run/`._
+HF Jobs **stack validation** (Unsloth 4-bit + LoRA, `GRPOTrainer`, `lr=1e-4`, `group_size=8`, 200 `max_steps`, rollout Space `gp5901-praxis`): [job `69edd94dd2c8bd8662bcfb08`](https://huggingface.co/jobs/gp5901/69edd94dd2c8bd8662bcfb08). An earlier attempt [job `69edcfdad2c8bd8662bcfa07`](https://huggingface.co/jobs/gp5901/69edcfdad2c8bd8662bcfa07) **completed with failure** at trainer import (`No module named 'mergekit'`); PEP 723 deps on `train_praxis_grpo.py` were expanded so later jobs reach the training loop.
 
-| Task                 | Baseline (smoke) | Trained (GPU run) | &Delta; |
-| -------------------- | ---------------: | ----------------: | ------: |
-| single-service-alert |               TBD |               TBD |     TBD |
-| ambiguous-incident   |               TBD |               TBD |     TBD |
-| cascading-failure    |               TBD |               TBD |     TBD |
-| memory-leak          |               TBD |               TBD |     TBD |
-| **Mean (4 tasks)**   |               TBD |               TBD |     TBD |
+Per-task **tabular** trained vs baseline scores still come from [`colabresults/eval_checkpoints.json`](colabresults/eval_checkpoints.json) until you re-run eval against the Hub adapter and overwrite that file. Baselines below are the stored smoke eval means from that JSON.
 
-Verification artifacts after the run:
+| Task                 | Baseline (smoke JSON) | Trained (GPU run) | &Delta; |
+| -------------------- | --------------------: | ----------------: | ------: |
+| single-service-alert |                0.0626 | — (see Trackio + Hub) | — |
+| ambiguous-incident   |                0.0283 | — | — |
+| cascading-failure    |                0.0422 | — | — |
+| memory-leak          |                0.1350 | — | — |
+| **Mean (4 tasks)**   |                0.0670 | — | — |
 
-- Trackio dashboard: TBD (also recorded in `trackio_url` of `run_manifest.json`).
-- Hub model + checkpoints: TBD (also recorded in `hub_model_id` of `run_manifest.json`).
-- Per-task metrics CSV + manifest: `colabresults/grpo_full_run/{metrics.csv,run_manifest.json}`.
+Verification artifacts:
+
+- Trackio dashboard: [https://gp5901-trackio.hf.space/](https://gp5901-trackio.hf.space/) (also `trackio_url` in `run_manifest.json` after a local/HF run).
+- Hub model + checkpoints: [https://huggingface.co/gp5901/praxis-grpo-7b](https://huggingface.co/gp5901/praxis-grpo-7b) (`checkpoints/praxis-grpo/` on push when `HF_HUB_MODEL_ID` is set).
+- Optional copy of metrics/manifest from the Hub into the repo: `colabresults/grpo_full_run/{metrics.csv,run_manifest.json}`.
 
 ## Training Evidence Artifacts
 

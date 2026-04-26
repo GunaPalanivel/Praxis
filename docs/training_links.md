@@ -51,6 +51,21 @@ Inside the GPU container, `scripts/run_hf_grpo_job.py`:
 (when `TRACKIO_SPACE_ID` is set), and `hub_model_id` (when set), giving
 judges a single artifact that links every part of the run.
 
+### HF Jobs monitor (merge verification)
+
+Stable links (independent of a single job finishing):
+
+- **Trackio (live):** [https://gp5901-trackio.hf.space/](https://gp5901-trackio.hf.space/)
+- **Trackio Space:** [https://huggingface.co/spaces/gp5901/trackio](https://huggingface.co/spaces/gp5901/trackio)
+- **Hub model (adapter + checkpoints):** [https://huggingface.co/gp5901/praxis-grpo-7b](https://huggingface.co/gp5901/praxis-grpo-7b)
+
+Recent jobs:
+
+| Job | Result |
+| --- | --- |
+| [`69edcfdad2c8bd8662bcfa07`](https://huggingface.co/jobs/gp5901/69edcfdad2c8bd8662bcfa07) | **Failed** — trainer import (`No module named 'mergekit'`). Fixed by declaring `mergekit` / `llm-blender` and compatible `transformers` in the trainer PEP 723 header. |
+| [`69edd94dd2c8bd8662bcfb08`](https://huggingface.co/jobs/gp5901/69edd94dd2c8bd8662bcfb08) | **Good path** — reaches GRPO training loop (Trackio + Hub as above). |
+
 When you need long smoke curves without a TRL install, re-run a stacked smoke (raise local rate limits if you hit 429 on `/step`):
 
 ```bash
