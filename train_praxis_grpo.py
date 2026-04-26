@@ -117,7 +117,14 @@ def parse_args() -> argparse.Namespace:
         default=",".join(DEFAULT_TASKS),
         help="Comma-separated task names.",
     )
-    parser.add_argument("--num-generations", type=int, default=8)
+    parser.add_argument(
+        "--num-generations",
+        "--group-size",
+        dest="num_generations",
+        type=int,
+        default=8,
+        help="GRPO num_generations / group size (TRL GRPOConfig.num_generations). Default 8.",
+    )
     parser.add_argument("--max-turns", type=int, default=150)
     parser.add_argument(
         "--model",
@@ -262,16 +269,28 @@ def _set_wandb_public(run: Any | None) -> str | None:
 
 
 def _init_trackio(enabled: bool) -> Any | None:
+    """Initialize Trackio. Set ``TRACKIO_SPACE_ID`` (e.g. ``user/trackio``) to
+    sync metrics to a Hugging Face Space dashboard; absent the env var the run
+    is local-only.
+    """
     if not enabled:
         return None
     try:
         import trackio  # type: ignore
     except Exception:
         return None
+    space_id = os.getenv("TRACKIO_SPACE_ID", "").strip() or None
+    init_kwargs: dict[str, Any] = {"project": "praxis-mission-ops"}
+    if space_id:
+        init_kwargs["space_id"] = space_id
     try:
-        trackio.init(project="praxis-mission-ops")
+        trackio.init(**init_kwargs)
     except Exception:
         return None
+    if space_id:
+        print(f"[TRAIN] trackio_url=https://huggingface.co/spaces/{space_id}")
+    else:
+        print("[TRAIN] trackio: local-only (set TRACKIO_SPACE_ID to sync to a Space)")
     return trackio
 
 
@@ -306,6 +325,8 @@ def _save_checkpoint_manifest(
     wandb_url: str | None,
     task_metrics: dict[str, list[StepTelemetry]],
     extra: dict[str, Any] | None = None,
+    trackio_url: str | None = None,
+    hub_model_id: str | None = None,
 ) -> Path:
     CHECKPOINT_DIR.mkdir(parents=True, exist_ok=True)
     manifest = {
@@ -321,6 +342,8 @@ def _save_checkpoint_manifest(
         "seed": args.seed,
         "smoke": bool(args.smoke),
         "wandb_url": wandb_url,
+        "trackio_url": trackio_url,
+        "hub_model_id": hub_model_id or None,
         "summary": {
             task: {
                 "steps_observed": len(metrics),
@@ -419,17 +442,24 @@ def run_smoke(args: argparse.Namespace) -> int:
                 wandb_run.finish()
             except Exception:
                 pass
+        trackio_space = os.getenv("TRACKIO_SPACE_ID", "").strip()
+        trackio_url = (
+            f"https://huggingface.co/spaces/{trackio_space}"
+            if trackio_space and trackio_mod is not None
+            else None
+        )
         manifest = _save_checkpoint_manifest(
             args=args,
             run_name=run_name,
             wandb_url=wandb_url,
             task_metrics=task_metrics,
+            trackio_url=trackio_url,
         )
         metrics_csv = _save_metrics_csv(task_metrics)
         print(f"[SMOKE] checkpoint_manifest={manifest.as_posix()}")
         print(f"[SMOKE] metrics_csv={metrics_csv.as_posix()}")
-        if wandb_url:
-            print(f"[SMOKE] wandb_url={wandb_url}")
+        if trackio_url:
+            print(f"[SMOKE] trackio_url={trackio_url}")
         return 0
     finally:
         if server_proc is not None:
@@ -656,9 +686,11 @@ def run_training(args: argparse.Namespace) -> int:
                 rewards.append(score)
             return rewards
 
-        grpo_config = GRPOConfig(
+        hub_model_id = os.getenv("HF_HUB_MODEL_ID", "").strip()
+        grpo_config_kwargs: dict[str, Any] = dict(
             output_dir=str(CHECKPOINT_DIR),
             learning_rate=lr,
+            num_generations=int(args.num_generations),
             per_device_train_batch_size=1,
             gradient_accumulation_steps=1,
             num_train_epochs=1,
@@ -667,9 +699,20 @@ def run_training(args: argparse.Namespace) -> int:
             max_completion_length=256,
             logging_steps=1,
             save_steps=max(1, int(args.steps) // 2),
-            report_to=[],
+            report_to=["trackio"] if trackio_mod is not None else [],
             seed=seed,
         )
+        # Hub push is gated on ``HF_HUB_MODEL_ID`` so local runs stay offline;
+        # HF Jobs invocations supply the env var so the trained checkpoint
+        # persists past the ephemeral container.
+        if hub_model_id:
+            grpo_config_kwargs.update(
+                push_to_hub=True,
+                hub_model_id=hub_model_id,
+                hub_strategy="every_save",
+            )
+            print(f"[TRAIN] hub_model_id={hub_model_id} push_to_hub=True")
+        grpo_config = GRPOConfig(**grpo_config_kwargs)
 
         trainer_kwargs = {
             "model": model,
@@ -726,12 +769,20 @@ def run_training(args: argparse.Namespace) -> int:
         }
 
         wandb_url = _set_wandb_public(wandb_run)
+        trackio_space = os.getenv("TRACKIO_SPACE_ID", "").strip()
+        trackio_url = (
+            f"https://huggingface.co/spaces/{trackio_space}"
+            if trackio_space and trackio_mod is not None
+            else None
+        )
         manifest = _save_checkpoint_manifest(
             args=args,
             run_name=run_name,
             wandb_url=wandb_url,
             task_metrics=task_metrics,
             extra=extra,
+            trackio_url=trackio_url,
+            hub_model_id=hub_model_id or None,
         )
         metrics_csv = _save_metrics_csv(task_metrics)
         print(f"[TRAIN] checkpoint_manifest={manifest.as_posix()}")
@@ -740,8 +791,10 @@ def run_training(args: argparse.Namespace) -> int:
         print(f"[TRAIN] trained_mean_reward={trained_mean:.6f}")
         if extra.get("reward_lift") is not None:
             print(f"[TRAIN] reward_lift={float(extra['reward_lift']):.4f}x")
-        if wandb_url:
-            print(f"[TRAIN] wandb_url={wandb_url}")
+        if trackio_url:
+            print(f"[TRAIN] trackio_url={trackio_url}")
+        if hub_model_id:
+            print(f"[TRAIN] hub_repo=https://huggingface.co/{hub_model_id}")
         return 0
     finally:
         if wandb_run is not None:

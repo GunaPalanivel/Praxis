@@ -337,7 +337,8 @@ class TestEpisodeScoreBudget:
                 "diagnose root_cause=bad_config",
                 "rollback_deploy service=auth",
             ],
-            0.6666666666666667,
+            # 4 steps to resolve on a 15-step task -> bonus 0.1 * (1 - 4/15)
+            0.63 + 0.1 * (1 - 4 / 15),
         ),
         (
             "ambiguous-incident",
@@ -352,7 +353,8 @@ class TestEpisodeScoreBudget:
                 "diagnose root_cause=dns_misconfiguration",
                 "restart_service service=dns-resolver",
             ],
-            0.742,
+            # 9 steps to resolve on a 25-step task -> bonus 0.1 * (1 - 9/25)
+            0.71 + 0.1 * (1 - 9 / 25),
         ),
         (
             "memory-leak",
@@ -363,7 +365,8 @@ class TestEpisodeScoreBudget:
                 "diagnose root_cause=large_batch_size_oom",
                 "rollback_deploy service=worker",
             ],
-            0.515,
+            # 5 steps to resolve on a 25-step task -> bonus 0.1 * (1 - 5/25)
+            0.475 + 0.1 * (1 - 5 / 25),
         ),
         (
             "cascading-failure",
@@ -376,7 +379,8 @@ class TestEpisodeScoreBudget:
                 "kill_query service=database query_id=runaway_analytics",
                 "scale_resource service=database resource=connection_pool",
             ],
-            0.4905,
+            # 7 steps to resolve on a 20-step task -> bonus 0.1 * (1 - 7/20)
+            0.458 + 0.1 * (1 - 7 / 20),
         ),
     ]
 

@@ -36,7 +36,17 @@ class TestOptimalPath:
         "scale_resource service=database resource=connection_pool",
     ]
     # Final step includes efficiency_bonus (resolved) when the pool is scaled.
-    EXPECTED_REWARDS = [0.024, 0.024, 0.074, 0.044, 0.134, 0.084, 0.1215]
+    # Direct ``scenario.step`` calls keep step_count=0, so the bonus is
+    # 0.1 * (1 - 1/MAX_STEPS) = 0.1 * 19/20 on a 20-step task.
+    EXPECTED_REWARDS = [
+        0.024,
+        0.024,
+        0.074,
+        0.044,
+        0.134,
+        0.084,
+        0.074 + 0.1 * (19 / 20),
+    ]
 
     def test_optimal_path_rewards(self):
         scenario = make_scenario()
@@ -47,7 +57,7 @@ class TestOptimalPath:
     def test_optimal_path_total_score(self):
         scenario = make_scenario()
         total = sum(step_cmd(scenario, cmd).reward for cmd in self.OPTIMAL_COMMANDS)
-        assert total == pytest.approx(0.5055, abs=1e-6)
+        assert total == pytest.approx(0.458 + 0.1 * (19 / 20), abs=1e-6)
 
     def test_optimal_path_done_only_after_second_remediation(self):
         scenario = make_scenario()
@@ -92,7 +102,7 @@ class TestResolutionRules:
             scenario,
             "escalate reason=db pool exhausted by analytics query",
         )
-        assert outcome.reward == pytest.approx(0.1315)
+        assert outcome.reward == pytest.approx(0.084 + 0.1 * (19 / 20), abs=1e-6)
         assert outcome.done is True
         assert outcome.incident_resolved is True
 

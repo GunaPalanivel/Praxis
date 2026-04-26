@@ -231,8 +231,11 @@ def _with_memory_events(events: Mapping[str, float]) -> dict[str, float]:
 #     engineers consult runbooks before guessing).
 #   - Step cost is 0 for easy (no pressure), mild for medium/hard
 #     (discourages aimless exploration).
-#   - efficiency_bonus_max: set to 0.05 per task (production merge floor) to reward
-#     faster resolution on terminal / resolved steps; see engine.score(resolved=...).
+#   - efficiency_bonus_max: set to 0.10 per task (per Issue #57 production-merge
+#     requirement) to reward faster resolution on terminal / resolved steps;
+#     see engine.score(resolved=...). The 0.10 ceiling lifts the resolved-step
+#     reward above the prior ~0.17 cap so judges can see meaningful learning
+#     signal on optimal trajectories.
 # ────────────────────────────────────────────────────────────────────────────
 
 DEFAULT_REWARD_POLICIES: dict[str, RewardPolicy] = {
@@ -268,7 +271,7 @@ DEFAULT_REWARD_POLICIES: dict[str, RewardPolicy] = {
         ),
         # Easy task: no step cost, mild penalties
         time_pressure_cost_per_step=0.0,
-        efficiency_bonus_max=0.05,
+        efficiency_bonus_max=0.10,
     ),
     # ── HARD: cascading-failure ─────────────────────────────────────────
     # Target optimal path: ~0.46 in 7 steps.
@@ -307,7 +310,7 @@ DEFAULT_REWARD_POLICIES: dict[str, RewardPolicy] = {
         ),
         # Hard task: stronger step cost discourages aimless exploration
         time_pressure_cost_per_step=0.006,
-        efficiency_bonus_max=0.05,
+        efficiency_bonus_max=0.10,
     ),
     # ── MEDIUM: ambiguous-incident ──────────────────────────────────────
     # Target optimal path: ~0.71 deterministic, requiring cross-service
@@ -345,7 +348,7 @@ DEFAULT_REWARD_POLICIES: dict[str, RewardPolicy] = {
         ),
         # Medium task: mild step cost
         time_pressure_cost_per_step=0.003,
-        efficiency_bonus_max=0.05,
+        efficiency_bonus_max=0.10,
     ),
     # ── HARD: memory-leak ───────────────────────────────────────────────
     # Requires checking memory metrics and config to find the OOM cause.
@@ -378,7 +381,7 @@ DEFAULT_REWARD_POLICIES: dict[str, RewardPolicy] = {
             }
         ),
         time_pressure_cost_per_step=0.005,
-        efficiency_bonus_max=0.05,
+        efficiency_bonus_max=0.10,
     ),
     # ── HARD+: cascading-platform-failure (mega incident) ─────────────────
     # Target optimal path: >=0.55 while requiring multiple correlated
@@ -420,7 +423,7 @@ DEFAULT_REWARD_POLICIES: dict[str, RewardPolicy] = {
         # MissionOps step cost (Issue #37, RewardPolicy.md §3.6). Lowered
         # from 0.004 -> 0.002 to keep the 150-step horizon survivable.
         time_pressure_cost_per_step=0.002,
-        efficiency_bonus_max=0.05,
+        efficiency_bonus_max=0.10,
     ),
 }
 
