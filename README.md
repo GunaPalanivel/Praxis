@@ -23,6 +23,7 @@ pinned: false
 - Source: [https://github.com/GunaPalanivel/Praxis](https://github.com/GunaPalanivel/Praxis)
 - YouTube: not published for this refresh (add here when you have a public link)
 - WandB / Trackio: not configured in the default local run (see [docs/training_links.md](docs/training_links.md))
+- **Colab run exports (repo root):** [`colabresults/`](colabresults/README.md) — latest curves, `jsonl`/`csv` logs, rollout traces, and `eval_checkpoints.json` in one place for quick review.
 
 **TRL training (`train_praxis_grpo.py`, non-smoke):** the GRPO `reward_func` runs a **trajectory** per completion: one `reset` per row, then one `/step` per non-empty line of the model output (in order, capped by `--max-turns`), or a single step when the model emits one line. The scalar label prefers the server’s ADR-20 `final_score` on `/state` when the episode is terminal, otherwise the mean of per-step rewards. Use an external Praxis process in production; local auto-start writes uvicorn stderr to a temp file (see [docs/deployment.md](docs/deployment.md)).
 
@@ -192,7 +193,7 @@ Run `python inference.py` to generate a fresh score snapshot.
 
 Plots and judge-facing figures are under **[`docs/figures/`](docs/figures/)** (see [`docs/figures/README.md`](docs/figures/README.md) for a file index). **Latest Colab / training run exports** (curves, logs, traces) are in **[`colabresults/`](colabresults/README.md)** at the repo root.
 
-- `praxis_grpo_colab.ipynb` (TRL Colab notebook wired to Praxis over HTTP; saves into `docs/figures/`)
+- `praxis_grpo_colab.ipynb` (TRL Colab notebook over HTTP; plots default to `docs/figures/`; copy or save run bundles under `colabresults/` when you publish evidence)
 - `docs/figures/reward_curve.png` (baseline vs trained comparison on same axes)
 - `docs/figures/loss_curve.png` (training loss curve)
 - `docs/rollout_baseline.txt` (real baseline rollout trace)
