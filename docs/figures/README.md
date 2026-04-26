@@ -18,4 +18,4 @@ All committed training and evidence plots for **README**, blog, and hackathon de
 
 Relative links from the repo root use the prefix `docs/figures/`.
 
-Ad hoc Colab or one-off run exports (extra logs, traces, run-specific plots) are under [`../colab-results/README.md`](../colab-results/README.md) so the repository root is not used for these files.
+Ad hoc Colab or one-off run exports (extra logs, traces, run-specific plots) live in **[`colabresults/`](../../colabresults/README.md)** at the repository root (instantly visible in the file tree).

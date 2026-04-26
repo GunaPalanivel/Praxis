@@ -1,6 +1,6 @@
-# Colab / training run exports
+# Colab / training run exports (`colabresults/`)
 
-Ad hoc results from a Colab or local run (curves, logs, rollouts) live here so the repo root stays clean.
+This folder is at the **repository root** so Colab and training run artifacts are easy to spot. Ad hoc results from a Colab or local run (curves, logs, rollouts) go here.
 
 | File | Description |
 | ---- | ------------ |
@@ -13,4 +13,4 @@ Ad hoc results from a Colab or local run (curves, logs, rollouts) live here so t
 
 Regenerate or replace these when you re-run; they are not required for `pytest` or `openenv validate`.
 
-See also: [`../figures/README.md`](../figures/README.md) for committed judge figure defaults.
+See also: [`docs/figures/README.md`](../docs/figures/README.md) for committed judge figure defaults.
