@@ -61,6 +61,26 @@ openenv validate
 
 ---
 
+## Keep the public Space in sync with GitHub `main`
+
+The judge-facing runtime at **https://gp5901-praxis.hf.space** is the Space repo **https://huggingface.co/spaces/gp5901/praxis**. It does **not** auto-update from every GitHub push. After merging API or server changes to `main`, publish the same file set the root `Dockerfile` copies:
+
+```bash
+hf auth login                    # or: export HF_TOKEN=hf_...
+git fetch origin main
+uv run python scripts/sync_hf_praxis_space.py --ref origin/main
+```
+
+Wait for the Space to rebuild, then smoke-check:
+
+```bash
+curl -sS https://gp5901-praxis.hf.space/health
+```
+
+Details: [`scripts/README.md`](../scripts/README.md) (`sync_hf_praxis_space.py`). The **Colab** badge reads notebooks from GitHub `main` directly; only the Space needs this upload step.
+
+---
+
 ## Local development: training and inference
 
 `train_praxis_grpo.py` and `inference.py` can start uvicorn on `127.0.0.1` when

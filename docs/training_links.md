@@ -2,6 +2,7 @@
 
 Run date: 2026-04-26
 
+- **Public Space:** after server/API changes land on `main`, sync **https://huggingface.co/spaces/gp5901/praxis** so **https://gp5901-praxis.hf.space** matches the repo (see [deployment.md](deployment.md) § *Keep the public Space in sync*).
 - Plotting / evidence scripts (`scripts/build_production_evidence.py`, `scripts/plot_curves.py`, `scripts/generate_grpo_evidence.py`) need the **`evidence`** optional extra. With uv: `uv sync --all-extras` (includes `evidence`) or `uv sync --extra evidence`.
 - Logging: this branch is **Trackio-only** for production. Set `TRACKIO_SPACE_ID=<user>/<space>` in the environment (e.g. `gp5901/trackio`); the trainer reports to that Space and writes `trackio_url` to `checkpoints/praxis-grpo/run_manifest.json`. `_init_wandb` is a no-op stub (kept for back-compat with older docs); `--no-wandb` is still accepted as the offline/CI switch and now also disables Trackio.
 - YouTube: record a 2–3 min Space screencast, publish unlisted or public, then paste the URL into the **Video** row of the [README § Links & materials](https://github.com/GunaPalanivel/Praxis/blob/main/README.md#links--materials-judges-start-here) table.

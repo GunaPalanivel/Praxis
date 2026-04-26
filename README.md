@@ -50,13 +50,22 @@ pinned: false
 | Deployment                                 | [`docs/deployment.md`](docs/deployment.md)                                                                                                                            | Docker / Space checklist.                                               |
 | Hackathon context                          | [Meta PyTorch OpenEnv Hackathon × SST](https://www.scaler.com/school-of-technology/meta-pytorch-hackathon)                                                            | Program link.                                                           |
 
+### Required deployments (after each push to `main`)
+
+| Target | Who updates it | Command / action |
+| ------ | -------------- | ----------------- |
+| **Live HF Space** (`gp5901-praxis`) | Maintainer with Hub write | `uv run python scripts/sync_hf_praxis_space.py --ref origin/main` ([`scripts/README.md`](scripts/README.md)). Uses `HF_TOKEN` or `hf auth login`. Wait for the Space build (~2 min), then `curl https://gp5901-praxis.hf.space/health` → `200`. |
+| **GRPO Colab** (badge URL) | None — always reads **`main`** from GitHub | Judges get the latest notebook on the next **Open in Colab** open; no separate publish step. |
+| **Trackio** (`gp5901-trackio`) | Training runs / HF Jobs | Set `TRACKIO_SPACE_ID`; metrics sync from the trainer, not from `sync_hf_praxis_space.py`. |
+| **Hub model** (`gp5901/praxis-grpo-7b`) | HF Jobs bootstrap / manual upload | `scripts/run_hf_grpo_job.py` uploads `checkpoints/praxis-grpo/` after training; not part of Space sync. |
+
 WandB is intentionally **not** used on this branch (`_init_wandb` is a no-op unless `WANDB_API_KEY` is set). Production telemetry is **Trackio-only** via `TRACKIO_SPACE_ID` (see [`scripts/submit_hf_grpo_job.py`](scripts/submit_hf_grpo_job.py)).
 
 ---
 
 ## Production merge checklist (13 items)
 
-These rows map the **production-merge** gate to **observable** evidence (HF Space, Hub, HF Jobs, Trackio, or automated tests). All thirteen are **done** for the housekeeping branch; **PR:** [https://github.com/GunaPalanivel/Praxis/pull/57](https://github.com/GunaPalanivel/Praxis/pull/57).
+These rows map the **production-merge** gate to **observable** evidence (HF Space, Hub, HF Jobs, Trackio, or automated tests). Gate items are satisfied on **`main`**; historical **PR:** [https://github.com/GunaPalanivel/Praxis/pull/57](https://github.com/GunaPalanivel/Praxis/pull/57).
 
 | #   | Requirement                                                                                                                                   | Status | Real-world evidence                                                                                                                                                   |
 | --- | --------------------------------------------------------------------------------------------------------------------------------------------- | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -72,7 +81,7 @@ These rows map the **production-merge** gate to **observable** evidence (HF Spac
 | 10  | Rollout **Space** capacity for high `/step` volume                                                                                            | Done   | Space hardware set to **cpu-upgrade** for rollout load ([gp5901/praxis](https://huggingface.co/spaces/gp5901/praxis))                                                 |
 | 11  | **PEP 723** trainer deps for TRL + Unsloth on Jobs (`mergekit`, `llm-blender`, pinned `transformers`, `trackio`, `httpx`, `datasets`, `peft`) | Done   | Header in `train_praxis_grpo.py`; contrast failed job [69edcfdad2c8bd8662bcfa07](https://huggingface.co/jobs/gp5901/69edcfdad2c8bd8662bcfa07) (`mergekit` import)     |
 | 12  | **GRPOConfig** validity on Unsloth (**generation_batch_size** vs `num_generations`, **LoRA** on 4-bit)                                        | Done   | same successful job logs + code in `run_training`                                                                                                                     |
-| 13  | **Regression tests**                                                                                                                          | Done   | `pytest tests/` — **498 passed** (local gate before PR)                                                                                                               |
+| 13  | **Regression tests**                                                                                                                          | Done   | `pytest tests/` — **500+ passed** (local gate before PR)                                                                                                              |
 
 ---
 
