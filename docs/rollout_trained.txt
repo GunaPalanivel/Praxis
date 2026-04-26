@@ -1,0 +1,9 @@
+[INFO] Starting local environment server for standalone inference...
+[INFO] Server is healthy.
+[START] task=single-service-alert env=praxis model=Qwen/Qwen2.5-72B-Instruct
+[STEP] step=1 action=query_logs service=auth timerange=5m reward=0.08 done=false error=null
+[STEP] step=2 action=check_config service=auth reward=0.10 done=false error=null
+[STEP] step=3 action=diagnose root_cause=bad_config reward=0.20 done=false error=null
+[STEP] step=4 action=rollback_deploy service=auth reward=0.25 done=true error=null
+[END] success=false steps=4 score=0.469 rewards=0.08,0.10,0.20,0.25
+[AGG] task=single-service-alert runs=1 mean_score=0.469 seeds=2026

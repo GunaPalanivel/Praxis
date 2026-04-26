@@ -122,8 +122,8 @@ jobs:
         run: |
           set -o pipefail
           uv pip install ruff
-          uv run ruff format --check praxis_env/ server/ tests/ inference.py 2>&1 | tee ruff_format.log
-          uv run ruff check praxis_env/ server/ tests/ inference.py 2>&1 | tee ruff_lint.log
+          uv run ruff format --check praxis_env/ server/ tests/ inference.py train_praxis_grpo.py scripts/ 2>&1 | tee ruff_format.log
+          uv run ruff check praxis_env/ server/ tests/ inference.py train_praxis_grpo.py scripts/ 2>&1 | tee ruff_lint.log
 
       - name: Run pytest (capture)
         id: pytest

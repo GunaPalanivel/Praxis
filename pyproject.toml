@@ -30,6 +30,10 @@ dev = [
     "mypy",
     "pre-commit",
 ]
+evidence = [
+    "matplotlib>=3.8",
+    "numpy>=1.26",
+]
 
 [tool.setuptools.packages.find]
 where = ["."]

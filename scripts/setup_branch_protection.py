@@ -83,7 +83,7 @@ def build_payload(branch: str) -> dict:
             "required_approving_review_count": 1,
             "require_last_push_approval": True,
         },
-        "restrictions": None,           # who can push -> no list = anyone w/ write
+        "restrictions": None,  # who can push -> no list = anyone w/ write
         "required_linear_history": True,
         "allow_force_pushes": False,
         "allow_deletions": False,
@@ -94,9 +94,15 @@ def build_payload(branch: str) -> dict:
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--apply", action="store_true", help="Actually apply the protection rule.")
-    ap.add_argument("--branch", default="main", help="Branch to protect (default: main).")
+    ap = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    ap.add_argument(
+        "--apply", action="store_true", help="Actually apply the protection rule."
+    )
+    ap.add_argument(
+        "--branch", default="main", help="Branch to protect (default: main)."
+    )
     ap.add_argument("--repo", help="OWNER/NAME (default: detect via `gh repo view`).")
     args = ap.parse_args()
 
@@ -124,7 +130,8 @@ def main() -> int:
         print(
             "  gh api -X PUT repos/{repo}/branches/{branch}/protection \\\n"
             "    --input -  <<< '{json}'".format(
-                repo=repo, branch=args.branch,
+                repo=repo,
+                branch=args.branch,
                 json=json.dumps(payload),
             )
         )
