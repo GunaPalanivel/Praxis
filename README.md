@@ -18,7 +18,7 @@ pinned: false
 
 | Section | What you get |
 | ------- | -------------- |
-| [Links & materials](#links--materials-judges-start-here) | HF Space, Hub, Trackio, Colab, blog, optional video/slides |
+| [Links & materials](#links--materials-judges-start-here) | HF Space, Hub, Trackio, Colab, blog, hackathon |
 | [Production merge checklist (13)](#production-merge-checklist-13-items) | Gate items vs **real** URLs, jobs, and test evidence |
 | [The problem](#the-problem) | Why incident response is a hard, worthwhile training target |
 | [How the environment works](#how-the-environment-works) | API contract, observations, rewards, determinism |
@@ -48,8 +48,6 @@ pinned: false
 | **Hub model (GRPO adapter + checkpoints)** | **[huggingface.co/gp5901/praxis-grpo-7b](https://huggingface.co/gp5901/praxis-grpo-7b)** | Artifacts from `HF_HUB_MODEL_ID` training runs. |
 | Training runbook | [`docs/training_links.md`](docs/training_links.md) | HF Jobs commands, job IDs, env vars. |
 | Deployment | [`docs/deployment.md`](docs/deployment.md) | Docker / Space checklist. |
-| **Video (demo / walkthrough)** | *Add your URL here* | e.g. 2–3 min unlisted YouTube of the Space + one task; paste link in this table when ready. |
-| **Slides / deck** | *Add your URL here* | e.g. Google Slides or PDF for judges; paste when ready. |
 | Hackathon context | [Meta PyTorch OpenEnv Hackathon × SST](https://www.scaler.com/school-of-technology/meta-pytorch-hackathon) | Program link. |
 
 WandB is intentionally **not** used on this branch (`_init_wandb` is a no-op unless `WANDB_API_KEY` is set). Production telemetry is **Trackio-only** via `TRACKIO_SPACE_ID` (see [`scripts/submit_hf_grpo_job.py`](scripts/submit_hf_grpo_job.py)).
@@ -71,8 +69,8 @@ These rows map the **production-merge** gate to **observable** evidence (HF Spac
 | 7 | Smoke / Colab **lr** in credible band (`1e-4` etc.) | Done | `praxis_grpo_colab.ipynb` `TrainConfig` |
 | 8 | Colab **`group_size = 8`** aligned with trainer | Done | same notebook |
 | 9 | **HF Jobs** bootstrap + **git clone race** preflight | Done | [`scripts/run_hf_grpo_job.py`](scripts/run_hf_grpo_job.py), [`scripts/submit_hf_grpo_job.py`](scripts/submit_hf_grpo_job.py) |
-| 10 | Rollout **Space** capacity for high `/step` volume | Done | Operator upgraded Space hardware (e.g. **cpu-upgrade**); verify under Space **Settings → Hardware** on [gp5901/praxis](https://huggingface.co/spaces/gp5901/praxis) |
-| 11 | **PEP 723** trainer deps for TRL + Unsloth on Jobs (`mergekit`, `llm-blender`, `transformers<5`, …) | Done | header in `train_praxis_grpo.py`; contrast failed job [69edcfdad2c8bd8662bcfa07](https://huggingface.co/jobs/gp5901/69edcfdad2c8bd8662bcfa07) (`mergekit` import) |
+| 10 | Rollout **Space** capacity for high `/step` volume | Done | Space hardware set to **cpu-upgrade** for rollout load ([gp5901/praxis](https://huggingface.co/spaces/gp5901/praxis)) |
+| 11 | **PEP 723** trainer deps for TRL + Unsloth on Jobs (`mergekit`, `llm-blender`, pinned `transformers`, `trackio`, `httpx`, `datasets`, `peft`) | Done | Header in `train_praxis_grpo.py`; contrast failed job [69edcfdad2c8bd8662bcfa07](https://huggingface.co/jobs/gp5901/69edcfdad2c8bd8662bcfa07) (`mergekit` import) |
 | 12 | **GRPOConfig** validity on Unsloth (**generation_batch_size** vs `num_generations`, **LoRA** on 4-bit) | Done | same successful job logs + code in `run_training` |
 | 13 | **Regression tests** | Done | `pytest tests/` — **498 passed** (local gate before PR) |
 
@@ -159,7 +157,7 @@ flowchart LR
 
 | Slice | Task | Mean score | Notes |
 | ----- | ---- | ----------- | ----- |
-| Inference snapshot (2026-04-26, `inference.py --model random`, local server) | single-service-alert | 0.122 | Stochastic; refresh by re-running |
+| Inference snapshot (2026-04-26, `inference.py --model random`, local server) | single-service-alert | 0.122 | Stochastic single draw |
 | Same | ambiguous-incident | 0.010 | |
 | Same | cascading-failure | 0.441 | |
 | Same | memory-leak | 0.010 | |
@@ -175,20 +173,18 @@ flowchart LR
 | Evidence type | Where | Summary |
 | ------------- | ----- | ------- |
 | Smoke GRPO (80 ep, legacy Colab path) | [`colabresults/eval_checkpoints.json`](colabresults/eval_checkpoints.json) | Strongest lift on **single-service-alert**; other tasks need longer GPU GRPO—see JSON `notes`. |
-| Production stack validation | HF Job [69edd94d…](https://huggingface.co/jobs/gp5901/69edd94dd2c8bd8662bcfb08) + [Trackio](https://gp5901-trackio.hf.space/) + [Hub](https://huggingface.co/gp5901/praxis-grpo-7b) | Unsloth 4-bit + LoRA, `GRPOTrainer`, 200 `max_steps`, `lr=1e-4`, `group_size=8`. |
-| Failed import (fixed) | HF Job [69edcfd…](https://huggingface.co/jobs/gp5901/69edcfdad2c8bd8662bcfa07) | `mergekit` missing from PEP 723 env—addressed in trainer header. |
+| Production stack validation | HF Job [69edd94dd2c8bd8662bcfb08](https://huggingface.co/jobs/gp5901/69edd94dd2c8bd8662bcfb08) + [Trackio](https://gp5901-trackio.hf.space/) + [Hub](https://huggingface.co/gp5901/praxis-grpo-7b) | Unsloth 4-bit + LoRA, `GRPOTrainer`, 200 `max_steps`, `lr=1e-4`, `group_size=8`. |
+| Failed import (fixed) | HF Job [69edcfdad2c8bd8662bcfa07](https://huggingface.co/jobs/gp5901/69edcfdad2c8bd8662bcfa07) | `mergekit` missing from PEP 723 env; fixed in `train_praxis_grpo.py` PEP 723 header. |
 
-**Per-task trained vs baseline (tabular, from smoke JSON until Hub-eval refresh):**
+**Per-task trained vs baseline** (means from [`colabresults/eval_checkpoints.json`](colabresults/eval_checkpoints.json): 80 smoke GRPO episodes, legacy Colab path; see that file for `config` and `notes`).
 
-| Task | Baseline (smoke JSON) | Trained (GPU) | Δ |
-| ---- | --------------------: | :-------------: | - |
-| single-service-alert | 0.0626 | — (Trackio + Hub) | — |
-| ambiguous-incident | 0.0283 | — | — |
-| cascading-failure | 0.0422 | — | — |
-| memory-leak | 0.1350 | — | — |
-| **Mean** | **0.0670** | — | — |
-
-Re-run scripted eval against the Hub adapter and overwrite `eval_checkpoints.json` to fill the trained column with new means.
+| Task | Baseline | Trained | Δ |
+| ---- | -------: | ------: | -: |
+| single-service-alert | 0.0626 | 0.1010 | +0.0384 |
+| ambiguous-incident | 0.0283 | 0.0187 | -0.0096 |
+| cascading-failure | 0.0422 | 0.0389 | -0.0033 |
+| memory-leak | 0.1350 | 0.1183 | -0.0167 |
+| **Mean** | **0.0670** | **0.0692** | **+0.0022** |
 
 ---
 
