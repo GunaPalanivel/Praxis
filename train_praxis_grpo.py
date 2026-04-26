@@ -5,7 +5,9 @@
 #   "unsloth>=2024.10",
 #   "trl>=0.13.0",
 #   "transformers>=4.46.0",
-#   "wandb>=0.18.0",
+#   "datasets>=2.20.0",
+#   "peft>=0.12.0",
+#   "mergekit>=0.0.4",
 #   "trackio>=0.1.0",
 #   "httpx>=0.27.0",
 # ]
@@ -242,15 +244,25 @@ async def _run_smoke_episode(
 
 
 def _init_wandb(run_name: str, enabled: bool) -> Any | None:
+    """Default off; opt-in only when ``WANDB_API_KEY`` is set in env.
+
+    The production-merge plan is Trackio-only (HF-native, uses ``HF_TOKEN``);
+    this stays callable for legacy invocations that explicitly export a
+    WandB key, and is otherwise a no-op that returns ``None`` so the rest
+    of the trainer continues with Trackio.
+    """
     if not enabled:
+        return None
+    if not os.getenv("WANDB_API_KEY", "").strip():
         return None
     try:
         import wandb  # type: ignore
     except Exception:
         return None
-    mode = "online"
-    run = wandb.init(project="praxis-mission-ops", name=run_name, mode=mode)
-    return run
+    try:
+        return wandb.init(project="praxis-mission-ops", name=run_name, mode="online")
+    except Exception:
+        return None
 
 
 def _set_wandb_public(run: Any | None) -> str | None:
