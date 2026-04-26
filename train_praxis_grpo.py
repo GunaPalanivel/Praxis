@@ -8,6 +8,7 @@
 #   "datasets>=2.20.0",
 #   "peft>=0.12.0",
 #   "mergekit>=0.0.4",
+#   "llm-blender>=0.0.2",
 #   "trackio>=0.1.0",
 #   "httpx>=0.27.0",
 # ]
