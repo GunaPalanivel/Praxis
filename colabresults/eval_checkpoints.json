@@ -6,28 +6,37 @@
     "memory-leak": 0.135
   },
   "trained_scores": {
-    "single-service-alert": 0.101,
-    "ambiguous-incident": 0.0187,
-    "cascading-failure": 0.0389,
-    "memory-leak": 0.1183
+    "training-loop-mean": 0.4631
   },
   "checkpoints": [
     {
       "episode": 80,
       "task": "all_tasks",
-      "note": "Smoke GRPO (legacy Colab) — see docs/training_evolution.md. Full 200+ ep GPU re-run is the merge gate."
+      "note": "Smoke GRPO (legacy Colab) — see docs/training_evolution.md."
+    },
+    {
+      "steps": 200,
+      "task": "all_tasks",
+      "hub_job": "gp5901/praxis-grpo-7b",
+      "runtime_seconds": 809,
+      "note": "Full HF Jobs GPU run — Qwen2.5-7B, lr=1e-4, group_size=8, smoke=false, trainer_rc=0"
     }
   ],
   "config": {
-    "episodes": 220,
-    "group_size": 4,
-    "max_steps": 10,
+    "steps": 200,
+    "group_size": 8,
     "lr": 0.0001,
-    "step_delay": 0.4,
-    "eval_every": 10,
-    "eval_episodes": 5,
-    "source": "praxis_grpo_colab + train_praxis_grpo default --learning-rate (production merge default)"
+    "max_turns": 150,
+    "num_generations": 8,
+    "tasks": [
+      "single-service-alert",
+      "ambiguous-incident",
+      "cascading-failure",
+      "memory-leak"
+    ],
+    "model": "Qwen/Qwen2.5-7B-Instruct",
+    "source": "HF Jobs — scripts/submit_hf_grpo_job.py @ c3ca4c26, a10g-large"
   },
-  "total_episodes": 80,
-  "notes": "baseline/trained per-task means from April 26 Colab evidence run; notebook defaults now use lr=1e-4 and 220+ episodes. Re-run Colab/TRL and overwrite this file after a judge-grade GPU run."
+  "total_episodes": 200,
+  "notes": "Full 200-step GRPO run, smoke=false, 809s on a10g-large. Baseline 0.4636, trained 0.4631 (training-loop mean). Per-task baselines from April 26 softmax eval. Hub: huggingface.co/gp5901/praxis-grpo-7b. Trackio: gp5901-trackio.hf.space."
 }
