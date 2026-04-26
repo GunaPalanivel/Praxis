@@ -9,9 +9,12 @@ Contract requirements:
 
 from __future__ import annotations
 
+import argparse
 import asyncio
 import os
+import random
 import re
+import statistics
 import subprocess
 from dataclasses import dataclass
 
@@ -107,7 +110,7 @@ OUTPUT_MIN_SCORE = 0.001
 OUTPUT_MAX_SCORE = 0.999
 
 
-SYSTEM_PROMPT = (
+LEGACY_SYSTEM_PROMPT = (
     "You are an on-call incident response assistant. "
     "Return exactly one valid command and nothing else. "
     "Use only these command styles: "
@@ -124,6 +127,23 @@ SYSTEM_PROMPT = (
     "escalate reason=<text>."
 )
 
+SRE_MISSIONOPS_SYSTEM_PROMPT = (
+    "You are an SRE incident commander for long-horizon MissionOps scenarios. "
+    "Return exactly one valid command and nothing else. "
+    "Prioritize evidence-first triage, then plan, then remediation. "
+    "Use memory tools before and after cutoff: save_finding key=<key> value=<finding> "
+    "and recall_memory [key=<key>]. "
+    "For mission tasks, explicitly plan and adapt: "
+    "create_plan milestones=<m1,m2,m3,...>; "
+    "revise_plan replace=<old> with=<new> or add=<new> or remove=<old>; "
+    "checkpoint milestone=<name>; "
+    "submit_report root_causes=<c1,c2,...> resolution=<short>; "
+    "request_clarification topic=<service|artifact|next>. "
+    "Also use investigation and remediation commands when warranted: "
+    "query_logs, check_metrics, check_deps, check_config, check_runbook, diagnose, "
+    "restart_service, rollback_deploy, scale_resource, kill_query, escalate."
+)
+
 
 @dataclass
 class EpisodeResult:
@@ -131,6 +151,15 @@ class EpisodeResult:
     steps: int
     score: float
     rewards: list[float]
+
+
+@dataclass
+class InferenceConfig:
+    runs: int
+    seed: int
+    model_mode: str
+    system_prompt_mode: str
+    adapter: str | None = None
 
 
 def format_bool(value: bool) -> str:
@@ -245,11 +274,58 @@ def parse_task_list(raw: str | None) -> list[str]:
     return valid if valid else list(DEFAULT_TASKS)
 
 
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Run Praxis baseline inference.")
+    parser.add_argument("--task", default=None, help="Single task name to run.")
+    parser.add_argument("--runs", type=int, default=1, help="Number of runs per task.")
+    parser.add_argument("--seed", type=int, default=2026, help="Base RNG seed.")
+    parser.add_argument(
+        "--system-prompt",
+        choices=("sre", "none", "random"),
+        default="sre",
+        help="System prompt profile for router model mode.",
+    )
+    parser.add_argument(
+        "--model",
+        choices=("router", "random"),
+        default="router",
+        help="Use HF router model or random baseline commands.",
+    )
+    parser.add_argument(
+        "--no-system-prompt",
+        action="store_true",
+        help="Shortcut for --system-prompt none.",
+    )
+    parser.add_argument(
+        "--adapter",
+        default=None,
+        help="Optional adapter path for trained-model runs.",
+    )
+    return parser.parse_args()
+
+
+def resolve_system_prompt(mode: str) -> str:
+    if mode == "sre":
+        return SRE_MISSIONOPS_SYSTEM_PROMPT
+    if mode == "none":
+        return ""
+    return LEGACY_SYSTEM_PROMPT
+
+
 def fallback_command(task_name: str, step: int) -> str:
     commands = FALLBACK_COMMANDS.get(task_name, ["escalate reason=unable to proceed"])
     if step <= len(commands):
         return commands[step - 1]
     return commands[-1]
+
+
+def random_baseline(task_name: str, step: int, rng: random.Random) -> str:
+    commands = FALLBACK_COMMANDS.get(task_name)
+    if not commands:
+        return "escalate reason=random_baseline_no_commands"
+    # Keep command validity while introducing deterministic stochasticity.
+    _ = step  # explicit: step available for future stratified sampling.
+    return rng.choice(commands)
 
 
 def _normalize_model_output(text: str) -> str:
@@ -299,6 +375,7 @@ def _request_model_command(
     step: int,
     observation: PraxisObservation,
     history: list[str],
+    system_prompt: str,
 ) -> tuple[str | None, bool]:
     """
     Returns:
@@ -311,7 +388,12 @@ def _request_model_command(
         completion = client.chat.completions.create(
             model=MODEL_NAME,
             messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "system", "content": system_prompt}
+                if system_prompt
+                else {
+                    "role": "system",
+                    "content": "Return exactly one valid command string.",
+                },
                 {
                     "role": "user",
                     "content": _build_user_prompt(
@@ -349,7 +431,21 @@ def _build_client() -> OpenAI | None:
     )
 
 
-async def run_episode(task_name: str, client: OpenAI | None) -> EpisodeResult:
+async def run_episode(
+    task_name: str,
+    client: OpenAI | None,
+    *,
+    run_seed: int = 0,
+    config: InferenceConfig | None = None,
+) -> EpisodeResult:
+    if config is None:
+        config = InferenceConfig(
+            runs=1,
+            seed=run_seed,
+            model_mode="router",
+            system_prompt_mode="sre",
+            adapter=None,
+        )
     rewards: list[float] = []
     steps_taken = 0
     done = False
@@ -360,6 +456,13 @@ async def run_episode(task_name: str, client: OpenAI | None) -> EpisodeResult:
     final_score_from_server: float | None = None
     incident_resolved = False
     root_cause_identified = False
+    rng = random.Random(f"{run_seed}:{task_name}")
+    system_prompt = resolve_system_prompt(config.system_prompt_mode)
+
+    def _mode_fallback(current_step: int) -> str:
+        if config.system_prompt_mode in {"none", "random"}:
+            return random_baseline(task_name, current_step, rng)
+        return fallback_command(task_name, current_step)
 
     print(render_start_line(task_name, BENCHMARK_NAME, MODEL_NAME), flush=True)
 
@@ -371,19 +474,22 @@ async def run_episode(task_name: str, client: OpenAI | None) -> EpisodeResult:
         task_limit = min(MAX_STEPS_BY_TASK.get(task_name, 15), MAX_STEPS_CAP)
         for step in range(1, task_limit + 1):
             command: str
-            if use_model:
+            if config.model_mode == "random" or config.system_prompt_mode == "random":
+                command = random_baseline(task_name, step, rng)
+            elif use_model:
                 model_command, disable_model = _request_model_command(
                     client=client,
                     task_name=task_name,
                     step=step,
                     observation=observation,
                     history=history,
+                    system_prompt=system_prompt,
                 )
                 if disable_model:
                     use_model = False
-                command = model_command or fallback_command(task_name, step)
+                command = model_command or _mode_fallback(step)
             else:
-                command = fallback_command(task_name, step)
+                command = _mode_fallback(step)
 
             error_value: str | None = None
 
@@ -504,14 +610,49 @@ def ensure_server_running(url: str) -> subprocess.Popen | None:
 
 
 async def main() -> None:
+    args = parse_args()
+    system_prompt_mode = "none" if args.no_system_prompt else args.system_prompt
+    config = InferenceConfig(
+        runs=max(1, int(args.runs)),
+        seed=int(args.seed),
+        model_mode=args.model,
+        system_prompt_mode=system_prompt_mode,
+        adapter=args.adapter,
+    )
+
     server_proc = None
     try:
         server_proc = ensure_server_running(PRAXIS_URL)
+        client = _build_client() if config.model_mode == "router" else None
 
-        client = _build_client()
-        tasks = parse_task_list(os.getenv("PRAXIS_TASKS"))
+        if args.task:
+            tasks = (
+                [args.task]
+                if args.task in DEFAULT_TASKS
+                else parse_task_list(args.task)
+            )
+        else:
+            tasks = parse_task_list(os.getenv("PRAXIS_TASKS"))
+
         for task in tasks:
-            await run_episode(task_name=task, client=client)
+            run_scores: list[float] = []
+            run_seeds: list[int] = []
+            for run_idx in range(config.runs):
+                run_seed = config.seed + run_idx
+                run_seeds.append(run_seed)
+                result = await run_episode(
+                    task_name=task,
+                    client=client,
+                    run_seed=run_seed,
+                    config=config,
+                )
+                run_scores.append(result.score)
+            mean_score = statistics.fmean(run_scores) if run_scores else 0.0
+            seeds_csv = ",".join(str(seed) for seed in run_seeds)
+            print(
+                f"[AGG] task={task} runs={len(run_scores)} mean_score={mean_score:.3f} seeds={seeds_csv}",
+                flush=True,
+            )
     finally:
         if server_proc:
             server_proc.terminate()
