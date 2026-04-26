@@ -9,6 +9,7 @@ repo unless you pass `--apply`.
 | `setup_branch_protection.py` | Applies the `main` branch protection rule (1 review + CODEOWNERS + CI green + linear history + no force push). | Yes — PUT semantics.                                               |
 | `submit_hf_grpo_job.py`      | Preflight (`git ls-remote`) + submit a full GRPO run on HF Jobs at the local HEAD SHA.                         | Yes — re-run to launch a new job; the bootstrap pins the SHA.      |
 | `run_hf_grpo_job.py`         | UV bootstrap that runs *inside* the HF Jobs container: clones Praxis at a pinned SHA and runs the trainer.     | N/A — invoked by the submitter, not by hand.                       |
+| `rewrite_grpo_colab_notebook.py` | Regenerates `praxis_grpo_colab.ipynb` from the canonical `train_praxis_grpo.py` + `uv` flow (judge Colab).   | Re-run after changing the notebook contract; overwrites the ipynb. |
 
 ## Prereqs (one-time)
 

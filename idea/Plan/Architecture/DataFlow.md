@@ -11,6 +11,7 @@
 ```mermaid
 flowchart LR
     subgraph Client[Client side]
+        TP[train_praxis_grpo.py<br/>Colab / HF Jobs uv run]
         T[TRL GRPOTrainer<br/>environment_factory]
         I[inference.py]
         H[curl / judge harness]
@@ -38,12 +39,15 @@ flowchart LR
         end
     end
 
+    TP --> R
     T --> R
     I --> R
     H --> R
+    TP --> S
     T --> S
     I --> S
     H --> S
+    TP --> ST
     T --> ST
     H --> HE
 

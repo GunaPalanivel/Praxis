@@ -128,14 +128,25 @@ Valid metric examples include `error_rate`, `latency_p95`, `connections`, `memor
 
 ```mermaid
 flowchart LR
-    A[Agent or trainer] --> B[FastAPI server]
-    B --> C[PraxisEnvironment]
-    C --> D[Command parser]
-    C --> E[Scenarios]
-    E --> F[Reward engine]
+    subgraph Clients[Clients]
+        TR[train_praxis_grpo.py GRPOTrainer]
+        AG[Agent or inference.py]
+    end
+    B[FastAPI server]
+    C[PraxisEnvironment]
+    D[Command parser]
+    E[Scenarios]
+    F[Reward engine]
+    TR -->|HTTPS /reset /step| B
+    AG --> B
+    B --> C
+    C --> D
+    C --> E
+    E --> F
     F --> C
     C --> G[Observation + reward + done]
-    G --> A
+    G --> TR
+    G --> AG
 ```
 
 ---
