@@ -14,14 +14,15 @@ from __future__ import annotations
 import asyncio
 import io
 import re
-import sys
 from contextlib import redirect_stdout
 
 import inference
 
 
 class _FakeStepResult:
-    def __init__(self, observation, reward: float, done: bool, info: dict | None = None):
+    def __init__(
+        self, observation, reward: float, done: bool, info: dict | None = None
+    ):
         self.observation = observation
         self.reward = reward
         self.done = done
@@ -70,7 +71,9 @@ class _FakeEnv:
 def _parse_step_rewards(stdout_text: str) -> list[float]:
     return [
         float(match.group(1))
-        for match in re.finditer(r"^\[STEP\].*? reward=(\d+\.\d{2}) ", stdout_text, re.MULTILINE)
+        for match in re.finditer(
+            r"^\[STEP\].*? reward=(\d+\.\d{2}) ", stdout_text, re.MULTILINE
+        )
     ]
 
 
@@ -93,7 +96,9 @@ def _parse_end_score(stdout_text: str) -> float | None:
     return float(match.group(1))
 
 
-async def _run_case(name: str, fake_env: _FakeEnv, expected_reward: float) -> tuple[bool, str]:
+async def _run_case(
+    name: str, fake_env: _FakeEnv, expected_reward: float
+) -> tuple[bool, str]:
     original_from_url = inference.PraxisEnv.from_url
 
     async def _fake_from_url(cls, url: str, timeout: float = 30.0):
@@ -104,7 +109,9 @@ async def _run_case(name: str, fake_env: _FakeEnv, expected_reward: float) -> tu
 
     try:
         with redirect_stdout(output_buffer):
-            episode_result = await inference.run_episode("single-service-alert", client=None)
+            episode_result = await inference.run_episode(
+                "single-service-alert", client=None
+            )
     except Exception as exc:
         return False, f"{name}: crashed with exception: {exc}"
     finally:
@@ -124,25 +131,43 @@ async def _run_case(name: str, fake_env: _FakeEnv, expected_reward: float) -> tu
         return False, f"{name}: no [END] score emitted\n{emitted}"
 
     if any(value <= 0.0 or value >= 1.0 for value in step_rewards + end_rewards):
-        return False, f"{name}: strict bounds violated in emitted rewards: steps={step_rewards}, end={end_rewards}"
+        return (
+            False,
+            f"{name}: strict bounds violated in emitted rewards: steps={step_rewards}, end={end_rewards}",
+        )
 
     if end_score <= 0.0 or end_score >= 1.0:
         return False, f"{name}: strict bounds violated in END score: score={end_score}"
 
     if any(abs(value - expected_reward) > 1e-9 for value in step_rewards):
-        return False, f"{name}: step rewards {step_rewards} did not match expected {expected_reward:.2f}"
+        return (
+            False,
+            f"{name}: step rewards {step_rewards} did not match expected {expected_reward:.2f}",
+        )
 
     if any(abs(value - expected_reward) > 1e-9 for value in end_rewards):
-        return False, f"{name}: END rewards {end_rewards} did not match expected {expected_reward:.2f}"
+        return (
+            False,
+            f"{name}: END rewards {end_rewards} did not match expected {expected_reward:.2f}",
+        )
 
     if abs(end_score - expected_reward) > 1e-9:
-        return False, f"{name}: END score {end_score:.3f} did not match expected {expected_reward:.2f}"
+        return (
+            False,
+            f"{name}: END score {end_score:.3f} did not match expected {expected_reward:.2f}",
+        )
 
     if any(abs(value - expected_reward) > 1e-9 for value in episode_result.rewards):
-        return False, f"{name}: EpisodeResult rewards {episode_result.rewards} did not match expected {expected_reward:.2f}"
+        return (
+            False,
+            f"{name}: EpisodeResult rewards {episode_result.rewards} did not match expected {expected_reward:.2f}",
+        )
 
     if "reward=0.00" in emitted or "reward=1.00" in emitted:
-        return False, f"{name}: emitted forbidden rounded boundary value in STEP lines\n{emitted}"
+        return (
+            False,
+            f"{name}: emitted forbidden rounded boundary value in STEP lines\n{emitted}",
+        )
 
     return True, f"{name}: PASS (expected {expected_reward:.2f})"
 

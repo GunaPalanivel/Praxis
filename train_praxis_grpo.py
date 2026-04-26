@@ -52,7 +52,10 @@ from pathlib import Path
 from typing import Any, TypeVar
 
 from praxis_env import PraxisAction, PraxisEnv
-from praxis_env.server_bootstrap import close_server_process_stderr, ensure_local_uvicorn
+from praxis_env.server_bootstrap import (
+    close_server_process_stderr,
+    ensure_local_uvicorn,
+)
 from server.command_parser import is_known_action, parse_command
 
 _T = TypeVar("_T")
