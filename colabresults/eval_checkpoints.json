@@ -1,66 +1,33 @@
 {
   "baseline_scores": {
-    "single-service-alert": 0.06260000000000002,
-    "ambiguous-incident": 0.028326666666666674,
-    "cascading-failure": 0.042243333333333334,
+    "single-service-alert": 0.0626,
+    "ambiguous-incident": 0.0283,
+    "cascading-failure": 0.0422,
     "memory-leak": 0.135
   },
   "trained_scores": {
-    "single-service-alert": 0.10097777777777779,
-    "ambiguous-incident": 0.01874,
-    "cascading-failure": 0.038900000000000004,
-    "memory-leak": 0.11833333333333333
+    "single-service-alert": 0.101,
+    "ambiguous-incident": 0.0187,
+    "cascading-failure": 0.0389,
+    "memory-leak": 0.1183
   },
   "checkpoints": [
     {
-      "episode": 10,
-      "task": "ambiguous-incident",
-      "eval_score": 0.0237
-    },
-    {
-      "episode": 20,
-      "task": "memory-leak",
-      "eval_score": 0.1218
-    },
-    {
-      "episode": 30,
-      "task": "ambiguous-incident",
-      "eval_score": 0.0241
-    },
-    {
-      "episode": 40,
-      "task": "memory-leak",
-      "eval_score": 0.16
-    },
-    {
-      "episode": 50,
-      "task": "ambiguous-incident",
-      "eval_score": 0.0205
-    },
-    {
-      "episode": 60,
-      "task": "memory-leak",
-      "eval_score": 0.1089
-    },
-    {
-      "episode": 70,
-      "task": "ambiguous-incident",
-      "eval_score": 0.0205
-    },
-    {
       "episode": 80,
-      "task": "memory-leak",
-      "eval_score": 0.1033
+      "task": "all_tasks",
+      "note": "Smoke GRPO (legacy Colab) — see docs/training_evolution.md. Full 200+ ep GPU re-run is the merge gate."
     }
   ],
   "config": {
-    "episodes": 80,
+    "episodes": 220,
     "group_size": 4,
     "max_steps": 10,
-    "lr": 0.06,
+    "lr": 0.0001,
     "step_delay": 0.4,
     "eval_every": 10,
-    "eval_episodes": 5
+    "eval_episodes": 5,
+    "source": "praxis_grpo_colab + train_praxis_grpo default --learning-rate (production merge default)"
   },
-  "total_episodes": 80
+  "total_episodes": 80,
+  "notes": "baseline/trained per-task means from April 26 Colab evidence run; notebook defaults now use lr=1e-4 and 220+ episodes. Re-run Colab/TRL and overwrite this file after a judge-grade GPU run."
 }

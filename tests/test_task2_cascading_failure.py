@@ -35,7 +35,8 @@ class TestOptimalPath:
         "kill_query service=database query_id=runaway_analytics",
         "scale_resource service=database resource=connection_pool",
     ]
-    EXPECTED_REWARDS = [0.024, 0.024, 0.074, 0.044, 0.134, 0.084, 0.074]
+    # Final step includes efficiency_bonus (resolved) when the pool is scaled.
+    EXPECTED_REWARDS = [0.024, 0.024, 0.074, 0.044, 0.134, 0.084, 0.1215]
 
     def test_optimal_path_rewards(self):
         scenario = make_scenario()
@@ -46,7 +47,7 @@ class TestOptimalPath:
     def test_optimal_path_total_score(self):
         scenario = make_scenario()
         total = sum(step_cmd(scenario, cmd).reward for cmd in self.OPTIMAL_COMMANDS)
-        assert total == pytest.approx(0.458, abs=1e-6)
+        assert total == pytest.approx(0.5055, abs=1e-6)
 
     def test_optimal_path_done_only_after_second_remediation(self):
         scenario = make_scenario()
@@ -91,7 +92,7 @@ class TestResolutionRules:
             scenario,
             "escalate reason=db pool exhausted by analytics query",
         )
-        assert outcome.reward == pytest.approx(0.084)
+        assert outcome.reward == pytest.approx(0.1315)
         assert outcome.done is True
         assert outcome.incident_resolved is True
 

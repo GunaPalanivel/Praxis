@@ -58,10 +58,10 @@ def test_optimal_path(scenario):
         ParsedCommand(action_type="rollback_deploy", params={"service": "worker"})
     )
     rewards.append(out.reward)
-    assert out.reward == pytest.approx(0.185, abs=1e-6)
+    assert out.reward == pytest.approx(0.233, abs=1e-6)
     assert out.done
     assert scenario._incident_resolved
-    assert sum(rewards) == pytest.approx(0.475, abs=1e-6)
+    assert sum(rewards) == pytest.approx(0.523, abs=1e-6)
 
 
 def test_query_logs_worker_includes_rootly_excerpt(scenario):

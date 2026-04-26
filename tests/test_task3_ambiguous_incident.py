@@ -38,7 +38,8 @@ class TestOptimalPath:
         "diagnose root_cause=dns_misconfiguration",
         "restart_service service=dns-resolver",
     ]
-    EXPECTED_REWARDS = [0.045, 0.045, 0.045, 0.025, 0.092, 0.092, 0.042, 0.187, 0.137]
+    # Terminal restart includes efficiency bonus when the incident resolves.
+    EXPECTED_REWARDS = [0.045, 0.045, 0.045, 0.025, 0.092, 0.092, 0.042, 0.187, 0.185]
 
     def test_optimal_path_rewards(self):
         scenario = make_scenario()
@@ -49,7 +50,7 @@ class TestOptimalPath:
     def test_optimal_path_total_score(self):
         scenario = make_scenario()
         total = sum(step_cmd(scenario, cmd).reward for cmd in self.OPTIMAL_COMMANDS)
-        assert total == pytest.approx(0.71, abs=1e-6)
+        assert total == pytest.approx(0.758, abs=1e-6)
 
     def test_optimal_path_done_at_end(self):
         scenario = make_scenario()
@@ -96,7 +97,7 @@ class TestEvidenceRules:
         outcome = step_cmd(
             scenario, "escalate reason=dns failures across frontend api and auth"
         )
-        assert outcome.reward == pytest.approx(0.137)
+        assert outcome.reward == pytest.approx(0.185)
         assert outcome.done is True
         assert outcome.incident_resolved is True
 

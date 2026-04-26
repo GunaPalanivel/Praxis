@@ -337,7 +337,7 @@ class TestEpisodeScoreBudget:
                 "diagnose root_cause=bad_config",
                 "rollback_deploy service=auth",
             ],
-            0.63,
+            0.6666666666666667,
         ),
         (
             "ambiguous-incident",
@@ -352,7 +352,7 @@ class TestEpisodeScoreBudget:
                 "diagnose root_cause=dns_misconfiguration",
                 "restart_service service=dns-resolver",
             ],
-            0.71,
+            0.742,
         ),
         (
             "memory-leak",
@@ -363,7 +363,7 @@ class TestEpisodeScoreBudget:
                 "diagnose root_cause=large_batch_size_oom",
                 "rollback_deploy service=worker",
             ],
-            0.475,
+            0.515,
         ),
         (
             "cascading-failure",
@@ -376,7 +376,7 @@ class TestEpisodeScoreBudget:
                 "kill_query service=database query_id=runaway_analytics",
                 "scale_resource service=database resource=connection_pool",
             ],
-            0.458,
+            0.4905,
         ),
     ]
 
