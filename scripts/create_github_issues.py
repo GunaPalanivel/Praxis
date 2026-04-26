@@ -44,27 +44,27 @@ TECHLEAD = "Gokul287"
 SDE = "snehasneha56526-arch"
 
 ISSUE_META: dict[int, dict] = {
-    1:  {"assignee": ARCHITECT, "labels": ["P0", "blocker", "server", "concurrency"]},
-    2:  {"assignee": ARCHITECT, "labels": ["P0", "models", "schema"]},
-    3:  {"assignee": ARCHITECT, "labels": ["P0", "feature", "memory", "theme-2"]},
-    4:  {"assignee": SDE,        "labels": ["P0", "parser", "memory"]},
-    5:  {"assignee": SDE,        "labels": ["P0", "reward", "memory"]},
-    6:  {"assignee": ARCHITECT, "labels": ["P0", "env", "memory"]},
-    7:  {"assignee": TECHLEAD,  "labels": ["P0", "feature", "scenario", "theme-2"]},
-    8:  {"assignee": TECHLEAD,  "labels": ["P0", "feature", "scenario", "procedural"]},
-    9:  {"assignee": SDE,        "labels": ["P1", "manifest", "registry"]},
-    10: {"assignee": TECHLEAD,  "labels": ["P1", "inference", "evidence"]},
-    11: {"assignee": TECHLEAD,  "labels": ["P1", "training", "pipeline"]},
-    12: {"assignee": TECHLEAD,  "labels": ["P1", "training", "evidence"]},
-    13: {"assignee": SDE,        "labels": ["P1", "tests", "memory"]},
-    14: {"assignee": SDE,        "labels": ["P1", "tests", "scenario"]},
-    15: {"assignee": SDE,        "labels": ["P1", "tests", "concurrency"]},
-    16: {"assignee": SDE,        "labels": ["P2", "cleanup"]},
-    17: {"assignee": SDE,        "labels": ["P2", "validation", "submission"]},
-    18: {"assignee": TECHLEAD,  "labels": ["P2", "deployment"]},
+    1: {"assignee": ARCHITECT, "labels": ["P0", "blocker", "server", "concurrency"]},
+    2: {"assignee": ARCHITECT, "labels": ["P0", "models", "schema"]},
+    3: {"assignee": ARCHITECT, "labels": ["P0", "feature", "memory", "theme-2"]},
+    4: {"assignee": SDE, "labels": ["P0", "parser", "memory"]},
+    5: {"assignee": SDE, "labels": ["P0", "reward", "memory"]},
+    6: {"assignee": ARCHITECT, "labels": ["P0", "env", "memory"]},
+    7: {"assignee": TECHLEAD, "labels": ["P0", "feature", "scenario", "theme-2"]},
+    8: {"assignee": TECHLEAD, "labels": ["P0", "feature", "scenario", "procedural"]},
+    9: {"assignee": SDE, "labels": ["P1", "manifest", "registry"]},
+    10: {"assignee": TECHLEAD, "labels": ["P1", "inference", "evidence"]},
+    11: {"assignee": TECHLEAD, "labels": ["P1", "training", "pipeline"]},
+    12: {"assignee": TECHLEAD, "labels": ["P1", "training", "evidence"]},
+    13: {"assignee": SDE, "labels": ["P1", "tests", "memory"]},
+    14: {"assignee": SDE, "labels": ["P1", "tests", "scenario"]},
+    15: {"assignee": SDE, "labels": ["P1", "tests", "concurrency"]},
+    16: {"assignee": SDE, "labels": ["P2", "cleanup"]},
+    17: {"assignee": SDE, "labels": ["P2", "validation", "submission"]},
+    18: {"assignee": TECHLEAD, "labels": ["P2", "deployment"]},
     19: {"assignee": ARCHITECT, "labels": ["P2", "documentation", "submission"]},
-    20: {"assignee": TECHLEAD,  "labels": ["P2", "demo", "submission"]},
-    21: {"assignee": TECHLEAD,  "labels": ["P2", "server", "benchmark", "submission"]},
+    20: {"assignee": TECHLEAD, "labels": ["P2", "demo", "submission"]},
+    21: {"assignee": TECHLEAD, "labels": ["P2", "server", "benchmark", "submission"]},
 }
 
 # Universal labels added to every plan-v2.1 issue
@@ -135,12 +135,21 @@ def detect_repo() -> str:
 def find_existing_issue(repo: str, title: str) -> int | None:
     """Return the issue number if an open or closed issue with this exact title exists."""
     p = run(
-        ["gh", "issue", "list",
-         "--repo", repo,
-         "--state", "all",
-         "--search", f'in:title "{title}"',
-         "--json", "number,title",
-         "--limit", "100"],
+        [
+            "gh",
+            "issue",
+            "list",
+            "--repo",
+            repo,
+            "--state",
+            "all",
+            "--search",
+            f'in:title "{title}"',
+            "--json",
+            "number,title",
+            "--limit",
+            "100",
+        ],
         capture=True,
     )
     if p.returncode != 0:
@@ -153,24 +162,47 @@ def find_existing_issue(repo: str, title: str) -> int | None:
 
 def ensure_labels(repo: str, labels: Iterable[str], *, apply: bool) -> None:
     """Make sure each label exists; create with a neutral colour if not."""
-    p = run(["gh", "label", "list", "--repo", repo, "--json", "name", "--limit", "200"], capture=True)
+    p = run(
+        ["gh", "label", "list", "--repo", repo, "--json", "name", "--limit", "200"],
+        capture=True,
+    )
     if p.returncode != 0:
         # Older gh versions: just try and let create fail gracefully.
         existing = set()
     else:
         existing = {row["name"] for row in json.loads(p.stdout)}
     palette = {
-        "P0": "B60205", "P1": "D93F0B", "P2": "FBCA04",
-        "blocker": "B60205", "plan-v2.1": "5319E7",
-        "memory": "1D76DB", "scenario": "0E8A16", "concurrency": "0052CC",
-        "tests": "C2E0C6", "documentation": "0075CA", "deployment": "0E8A16",
-        "demo": "8E44AD", "submission": "FF9F1C", "evidence": "B60205",
-        "server": "0052CC", "schema": "5319E7", "models": "1D76DB",
-        "feature": "A2EEEF", "training": "FB6A2B", "pipeline": "FB6A2B",
-        "manifest": "C5DEF5", "registry": "C5DEF5", "validation": "0E8A16",
-        "cleanup": "BFBFBF", "parser": "1D76DB", "reward": "B60205",
-        "inference": "FB6A2B", "theme-2": "B60205", "env": "0052CC",
-        "procedural": "0E8A16", "benchmark": "FF9F1C",
+        "P0": "B60205",
+        "P1": "D93F0B",
+        "P2": "FBCA04",
+        "blocker": "B60205",
+        "plan-v2.1": "5319E7",
+        "memory": "1D76DB",
+        "scenario": "0E8A16",
+        "concurrency": "0052CC",
+        "tests": "C2E0C6",
+        "documentation": "0075CA",
+        "deployment": "0E8A16",
+        "demo": "8E44AD",
+        "submission": "FF9F1C",
+        "evidence": "B60205",
+        "server": "0052CC",
+        "schema": "5319E7",
+        "models": "1D76DB",
+        "feature": "A2EEEF",
+        "training": "FB6A2B",
+        "pipeline": "FB6A2B",
+        "manifest": "C5DEF5",
+        "registry": "C5DEF5",
+        "validation": "0E8A16",
+        "cleanup": "BFBFBF",
+        "parser": "1D76DB",
+        "reward": "B60205",
+        "inference": "FB6A2B",
+        "theme-2": "B60205",
+        "env": "0052CC",
+        "procedural": "0E8A16",
+        "benchmark": "FF9F1C",
     }
     for lbl in labels:
         if lbl in existing:
@@ -189,12 +221,26 @@ def ensure_labels(repo: str, labels: Iterable[str], *, apply: bool) -> None:
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--apply", action="store_true", help="Actually run gh commands. Without this flag, dry-run only.")
-    ap.add_argument("--repo", help="Target repo as OWNER/NAME (default: current `gh repo view`).")
-    ap.add_argument("--only", help="Comma-separated issue numbers to (re)create, e.g. `1,5,21`.")
-    ap.add_argument("--start", type=int, default=1, help="First issue to process (inclusive).")
-    ap.add_argument("--end", type=int, default=21, help="Last issue to process (inclusive).")
+    ap = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    ap.add_argument(
+        "--apply",
+        action="store_true",
+        help="Actually run gh commands. Without this flag, dry-run only.",
+    )
+    ap.add_argument(
+        "--repo", help="Target repo as OWNER/NAME (default: current `gh repo view`)."
+    )
+    ap.add_argument(
+        "--only", help="Comma-separated issue numbers to (re)create, e.g. `1,5,21`."
+    )
+    ap.add_argument(
+        "--start", type=int, default=1, help="First issue to process (inclusive)."
+    )
+    ap.add_argument(
+        "--end", type=int, default=21, help="Last issue to process (inclusive)."
+    )
     args = ap.parse_args()
 
     gh_check_auth()
@@ -207,7 +253,9 @@ def main() -> int:
     issues = parse_issues(ISSUES_FILE)
     if {i["number"] for i in issues} != set(range(1, 22)):
         missing = sorted(set(range(1, 22)) - {i["number"] for i in issues})
-        sys.exit(f"ERROR: github_issues.md missing issue numbers {missing}; expected 1..21.")
+        sys.exit(
+            f"ERROR: github_issues.md missing issue numbers {missing}; expected 1..21."
+        )
 
     # Pre-create labels exactly once.
     all_labels = set(COMMON_LABELS)
@@ -232,16 +280,25 @@ def main() -> int:
         existing = find_existing_issue(repo, title)
         if existing is not None:
             cmd = [
-                "gh", "issue", "edit", str(existing),
-                "--repo", repo,
-                "--body", body,
-                "--add-label", ",".join(labels),
-                "--add-assignee", assignee,
+                "gh",
+                "issue",
+                "edit",
+                str(existing),
+                "--repo",
+                repo,
+                "--body",
+                body,
+                "--add-label",
+                ",".join(labels),
+                "--add-assignee",
+                assignee,
             ]
             if args.apply:
                 p = run(cmd, capture=True)
                 if p.returncode != 0:
-                    print(f"  FAIL update #{n} -> existing {existing}: {p.stderr.strip()}")
+                    print(
+                        f"  FAIL update #{n} -> existing {existing}: {p.stderr.strip()}"
+                    )
                 else:
                     print(f"  upd  #{n:02d} -> existing GitHub issue {existing}")
                     n_updated += 1
@@ -251,12 +308,19 @@ def main() -> int:
             continue
 
         cmd = [
-            "gh", "issue", "create",
-            "--repo", repo,
-            "--title", title,
-            "--body", body,
-            "--label", ",".join(labels),
-            "--assignee", assignee,
+            "gh",
+            "issue",
+            "create",
+            "--repo",
+            repo,
+            "--title",
+            title,
+            "--body",
+            body,
+            "--label",
+            ",".join(labels),
+            "--assignee",
+            assignee,
         ]
         if args.apply:
             p = run(cmd, capture=True)

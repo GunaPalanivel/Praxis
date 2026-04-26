@@ -51,7 +51,9 @@ def softmax(logits: np.ndarray) -> np.ndarray:
     return exp_values / np.sum(exp_values)
 
 
-def run_episode_with_policy(logits: np.ndarray, max_steps: int = 5) -> tuple[list[float], list[int]]:
+def run_episode_with_policy(
+    logits: np.ndarray, max_steps: int = 5
+) -> tuple[list[float], list[int]]:
     reset_payload = api_post("/reset", {"task_name": TASK_NAME})
     sid = reset_payload.get("session_id", "")
     headers = {"x-session-id": sid} if sid else {}
@@ -70,7 +72,9 @@ def run_episode_with_policy(logits: np.ndarray, max_steps: int = 5) -> tuple[lis
     return rewards, chosen_idxs
 
 
-def evaluate_policy(logits: np.ndarray, episodes: int = 8, max_steps: int = 5) -> list[float]:
+def evaluate_policy(
+    logits: np.ndarray, episodes: int = 8, max_steps: int = 5
+) -> list[float]:
     means: list[float] = []
     for _ in range(episodes):
         rewards, _ = run_episode_with_policy(logits, max_steps=max_steps)
@@ -95,7 +99,9 @@ def main() -> None:
         group_returns: list[float] = []
         group_actions: list[list[int]] = []
         for _ in range(group_size):
-            rewards, chosen_idxs = run_episode_with_policy(policy_logits, max_steps=max_steps)
+            rewards, chosen_idxs = run_episode_with_policy(
+                policy_logits, max_steps=max_steps
+            )
             ep_return = float(np.mean(rewards)) if rewards else 0.01
             group_returns.append(ep_return)
             group_actions.append(chosen_idxs)
@@ -123,7 +129,10 @@ def main() -> None:
         loss /= denom
         policy_logits += lr * grad
         loss_curve.append(float(loss))
-        print(f"episode {episode_idx + 1}/{episodes} mean_return={baseline:.4f} loss={loss:.4f}", flush=True)
+        print(
+            f"episode {episode_idx + 1}/{episodes} mean_return={baseline:.4f} loss={loss:.4f}",
+            flush=True,
+        )
 
     trained_rewards = evaluate_policy(policy_logits, episodes=8, max_steps=5)
 
@@ -143,7 +152,12 @@ def main() -> None:
     plt.close()
 
     plt.figure(figsize=(10, 5))
-    plt.plot(np.arange(1, len(loss_curve) + 1), loss_curve, color="blue", label="Training Loss")
+    plt.plot(
+        np.arange(1, len(loss_curve) + 1),
+        loss_curve,
+        color="blue",
+        label="Training Loss",
+    )
     plt.xlabel("Training Step / Episode")
     plt.ylabel("Loss")
     plt.title("GRPO Training Loss Curve")
