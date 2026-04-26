@@ -27,7 +27,7 @@ import os
 from contextlib import asynccontextmanager
 from typing import Any
 
-from fastapi import FastAPI, HTTPException, Request, Response
+from fastapi import FastAPI, HTTPException, Query, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -151,6 +151,15 @@ class StepRequest(BaseModel):
     """POST /step body."""
 
     command: str
+    # Fallback when proxies or minimal HTTP clients omit X-Session-Id (e.g. Colab).
+    session_id: str | None = None
+
+
+_MISSING_SESSION_DETAIL = (
+    "Missing session id: set X-Session-Id header, "
+    'or include "session_id" in the /step JSON body, '
+    "or pass ?session_id= on GET /state"
+)
 
 
 # ── App factory ───────────────────────────────────────────────────────────────
@@ -194,10 +203,19 @@ def create_app() -> FastAPI:
 
     # ── Routes ────────────────────────────────────────────────────────────────
 
-    async def _require_session(request: Request) -> tuple[str, Session]:
-        session_id = request.headers.get("x-session-id")
+    async def _require_session(
+        request: Request,
+        *,
+        body_session_id: str | None = None,
+        query_session_id: str | None = None,
+    ) -> tuple[str, Session]:
+        session_id = (request.headers.get("x-session-id") or "").strip()
+        if not session_id and body_session_id:
+            session_id = str(body_session_id).strip()
+        if not session_id and query_session_id:
+            session_id = str(query_session_id).strip()
         if not session_id:
-            raise HTTPException(status_code=400, detail="Missing X-Session-Id header")
+            raise HTTPException(status_code=400, detail=_MISSING_SESSION_DETAIL)
         session = await manager.get(session_id)
         if session is None:
             raise HTTPException(status_code=400, detail="No active session for that id")
@@ -342,7 +360,9 @@ def create_app() -> FastAPI:
         Returns: {observation, reward, done, info}
         """
         try:
-            _, session = await _require_session(request)
+            _, session = await _require_session(
+                request, body_session_id=payload.session_id
+            )
             action = PraxisAction(command=payload.command)
             # Per-session lock keeps step ordering deterministic when the
             # same client multiplexes multiple in-flight /step calls.
@@ -358,14 +378,18 @@ def create_app() -> FastAPI:
             raise HTTPException(status_code=500, detail=f"step() error: {e}")
 
     @app.get("/state")
-    async def state(request: Request) -> dict[str, Any]:
+    async def state(
+        request: Request, session_id: str | None = Query(default=None)
+    ) -> dict[str, Any]:
         """
         Get current episode state.
 
         Returns: PraxisState as JSON
         """
         try:
-            session_id, session = await _require_session(request)
+            resolved_id, session = await _require_session(
+                request, query_session_id=session_id
+            )
             async with session.lock:
                 s = session.env.state()
             return {
@@ -375,7 +399,7 @@ def create_app() -> FastAPI:
                 "incident_resolved": s.incident_resolved,
                 "root_cause_identified": s.root_cause_identified,
                 "cumulative_reward": s.cumulative_reward,
-                "session_id": session_id,
+                "session_id": resolved_id,
                 "memory_active": s.memory_active,
                 "final_score": s.final_score,
                 "mission_id": s.mission_id,

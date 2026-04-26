@@ -118,9 +118,12 @@ class PraxisEnv:
             StepResult with observation, reward, done, and info.
         """
         assert self._client is not None, "Call from_url() before using the client"
+        body: dict[str, str] = {"command": action.command}
+        if self._session_id:
+            body["session_id"] = self._session_id
         resp = await self._client.post(
             "/step",
-            json={"command": action.command},
+            json=body,
             headers=self._session_headers(),
         )
         resp.raise_for_status()
@@ -140,7 +143,10 @@ class PraxisEnv:
             PraxisState with episode_id, step_count, task_name, etc.
         """
         assert self._client is not None, "Call from_url() before using the client"
-        resp = await self._client.get("/state", headers=self._session_headers())
+        params = {"session_id": self._session_id} if self._session_id else None
+        resp = await self._client.get(
+            "/state", headers=self._session_headers(), params=params
+        )
         resp.raise_for_status()
         data = resp.json()
         return PraxisState(

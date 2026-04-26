@@ -56,8 +56,15 @@ def run_episode_with_policy(
     logits: np.ndarray, max_steps: int = 5
 ) -> tuple[list[float], list[int]]:
     reset_payload = api_post("/reset", {"task_name": TASK_NAME})
-    sid = reset_payload.get("session_id", "")
-    headers = {"x-session-id": sid} if sid else {}
+    sid = str(reset_payload.get("session_id", "") or "").strip()
+    if not sid:
+        raise RuntimeError(
+            "/reset response missing session_id; cannot call /step. "
+            f"keys={list(reset_payload.keys())!r}"
+        )
+    headers = {"x-session-id": sid}
+    # Body session_id survives proxies that strip custom headers (common in Colab).
+    step_headers = headers
 
     rewards: list[float] = []
     chosen_idxs: list[int] = []
@@ -65,7 +72,11 @@ def run_episode_with_policy(
         probs = softmax(logits)
         idx = int(np.random.choice(len(ACTION_POOL), p=probs))
         command = ACTION_POOL[idx]
-        step_payload = api_post("/step", {"command": command}, headers=headers)
+        step_payload = api_post(
+            "/step",
+            {"command": command, "session_id": sid},
+            headers=step_headers,
+        )
         rewards.append(float(step_payload["reward"]))
         chosen_idxs.append(idx)
         if bool(step_payload["done"]):

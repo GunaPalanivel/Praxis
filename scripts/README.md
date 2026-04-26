@@ -10,6 +10,19 @@ repo unless you pass `--apply`.
 | `submit_hf_grpo_job.py`          | Preflight (`git ls-remote`) + submit a full GRPO run on HF Jobs at the local HEAD SHA.                         | Yes — re-run to launch a new job; the bootstrap pins the SHA.      |
 | `run_hf_grpo_job.py`             | UV bootstrap that runs _inside_ the HF Jobs container: clones Praxis at a pinned SHA and runs the trainer.     | N/A — invoked by the submitter, not by hand.                       |
 | `rewrite_grpo_colab_notebook.py` | Regenerates `praxis_grpo_colab.ipynb` from the canonical `train_praxis_grpo.py` + `uv` flow (judge Colab).     | Re-run after changing the notebook contract; overwrites the ipynb. |
+| `sync_hf_praxis_space.py`        | Exports the Dockerfile runtime tree from a git ref and `hf upload`s it to Space **`gp5901/praxis`**.          | Yes — each run creates a new Hub commit; uses `HF_TOKEN` or `hf auth`. |
+
+## Sync GitHub `main` → Hugging Face Space (`gp5901/praxis`)
+
+The live Space should track **`origin/main`** (or another ref) for the same paths the image builds (`Dockerfile` `COPY` list + `Blog.MD`).
+
+```bash
+hf auth login                    # or: export HF_TOKEN=hf_...
+git fetch origin main
+uv run python scripts/sync_hf_praxis_space.py --ref origin/main
+# Preview only:
+uv run python scripts/sync_hf_praxis_space.py --ref origin/main --dry-run
+```
 
 ## Prereqs (one-time)
 
