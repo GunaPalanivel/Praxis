@@ -27,6 +27,9 @@ Optimal path (score ~0.475):
 
 from __future__ import annotations
 
+import random
+
+from praxis_env.artifacts import ArtifactStore, load_default_store
 from praxis_env.scenarios.base import (
     BaseScenario,
     ParsedCommand,
@@ -198,6 +201,22 @@ Typical issues:
         }
     )
 
+    def __init__(
+        self,
+        *,
+        seed: int | None = None,
+        artifact_store: ArtifactStore | None = None,
+    ) -> None:
+        super().__init__()
+        self._seed = int(seed) if seed is not None else 0
+        self._rng = random.Random(self._seed)
+        if artifact_store is not None:
+            self._artifact_store: ArtifactStore | None = artifact_store
+        else:
+            self._artifact_store = load_default_store(
+                seed=self._rng.randint(0, 2**31 - 1)
+            )
+
     def _reset_scenario_state(self) -> None:
         self._done_investigations: set[str] = set()
 
@@ -261,6 +280,8 @@ Typical issues:
 
         event = f"investigation.{action_to_event(inv_type)}.{service if service == 'worker' else 'default'}"
         score = self._score_event(event, duplicate=duplicate)
+        if inv_type == "logs" and service == "worker":
+            data = self._append_worker_excerpt(data)
 
         return StepOutcome(
             investigation_result=data,
@@ -268,6 +289,20 @@ Typical issues:
             done=self.is_done(),
             incident_resolved=self._incident_resolved,
             root_cause_identified=self._root_cause_identified,
+        )
+
+    def _append_worker_excerpt(self, data: str) -> str:
+        if self._artifact_store is None:
+            return data
+        artifacts = self._artifact_store.draw("log", "worker", n=1)
+        if not artifacts:
+            return data
+        excerpt = artifacts[0]
+        return (
+            f"{data.rstrip()}\n\n"
+            "[VENDORED LOG EXCERPT: worker]\n"
+            f"{excerpt.body}\n"
+            f"Source: {excerpt.source}"
         )
 
     def _handle_metrics(self, command: ParsedCommand) -> StepOutcome:
