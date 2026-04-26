@@ -108,6 +108,12 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--smoke", action="store_true")
     parser.add_argument(
+        "--smoke-episodes",
+        type=int,
+        default=1,
+        help="Smoke mode: run this many back-to-back episodes per task, concatenated into metrics.",
+    )
+    parser.add_argument(
         "--dataset-repeats",
         type=int,
         default=8,
@@ -299,6 +305,7 @@ def _save_checkpoint_manifest(
         "run_name": run_name,
         "model": MODEL_MAP[args.model],
         "steps": args.steps,
+        "smoke_episodes": int(getattr(args, "smoke_episodes", 1) or 1),
         "tasks": parse_tasks(args.tasks),
         "num_generations": args.num_generations,
         "max_turns": args.max_turns,
@@ -357,6 +364,9 @@ def _save_metrics_csv(task_metrics: dict[str, list[StepTelemetry]]) -> Path:
 
 
 def run_smoke(args: argparse.Namespace) -> int:
+    if int(args.smoke_episodes) < 1:
+        print("[SMOKE] --smoke-episodes must be >= 1", flush=True)
+        return 2
     run_name = f"praxis-smoke-{datetime.now(tz=timezone.utc).strftime('%Y%m%d-%H%M%S')}"
     wandb_run = _init_wandb(run_name, enabled=True)
     trackio_mod = _init_trackio(enabled=True)
@@ -365,22 +375,28 @@ def run_smoke(args: argparse.Namespace) -> int:
     try:
         task_metrics: dict[str, list[StepTelemetry]] = {}
         for idx, task_name in enumerate(parse_tasks(args.tasks)):
-            metrics = asyncio.run(
-                _run_smoke_episode(
-                    base_url=args.base_url,
-                    task_name=task_name,
-                    seed=args.seed + idx,
-                    max_steps=args.steps,
+            metrics: list[StepTelemetry] = []
+            for ep in range(int(args.smoke_episodes)):
+                chunk = asyncio.run(
+                    _run_smoke_episode(
+                        base_url=args.base_url,
+                        task_name=task_name,
+                        seed=args.seed + idx * 10_000 + ep,
+                        max_steps=args.steps,
+                    )
                 )
-            )
+                metrics.extend(chunk)
             task_metrics[task_name] = metrics
-            for step, telemetry in enumerate(metrics, start=1):
-                _log_step(trackio_mod, wandb_run, step, telemetry)
+            global_step = 0
+            for telemetry in metrics:
+                global_step += 1
+                _log_step(trackio_mod, wandb_run, global_step, telemetry)
             mean_reward = (
                 sum(t.reward for t in metrics) / len(metrics) if metrics else 0.0
             )
             print(
-                f"[SMOKE] task={task_name} steps={len(metrics)} mean_reward={mean_reward:.4f}"
+                f"[SMOKE] task={task_name} episodes={int(args.smoke_episodes)} "
+                f"steps={len(metrics)} mean_reward={mean_reward:.4f}"
             )
 
         wandb_url = _set_wandb_public(wandb_run)

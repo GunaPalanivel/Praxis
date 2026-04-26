@@ -10,6 +10,30 @@ tags:
 pinned: false
 ---
 
+**One line pitch:** Praxis is an OpenEnv style incident bridge where an agent must investigate, plan, and remediate like an on call engineer, with rewards tied to the full trajectory, not a single lucky answer.
+
+## Judge links and demo plots
+
+### Links (judges start here)
+
+- Live Space: [https://gp5901-praxis.hf.space](https://gp5901-praxis.hf.space)
+- Space project page: [https://huggingface.co/spaces/gp5901/praxis](https://huggingface.co/spaces/gp5901/praxis)
+- Space writeup: [Blog.MD on the Space repo](https://huggingface.co/spaces/gp5901/praxis/blob/main/Blog.MD) (mirrored in GitHub as [Blog.MD](https://github.com/GunaPalanivel/Praxis/blob/main/Blog.MD))
+- Colab: [open `praxis_grpo_colab.ipynb` in Colab](https://colab.research.google.com/github/GunaPalanivel/Praxis/blob/main/praxis_grpo_colab.ipynb)
+- Source: [https://github.com/GunaPalanivel/Praxis](https://github.com/GunaPalanivel/Praxis)
+- YouTube: not published for this refresh (add here when you have a public link)
+- WandB / Trackio: not configured in the default local run (see [docs/training_links.md](docs/training_links.md))
+
+### Plots (same files the notebook and scripts point at)
+
+![Before and after rollout compare](docs/rollout_compare.png)
+
+Caption: baseline vs trained mean episode reward on the same chart axes. Full log is in [docs/training_evolution.md](docs/training_evolution.md).
+
+![Training reward and loss from the local metrics CSV](docs/reward_curve.png)
+
+Caption: reward curve with a fixed random mean reference line, plus a matching loss series in [docs/loss_curve.png](docs/loss_curve.png).
+
 # Praxis: Production Incident Response Training for AI Agents
 
 Praxis is an OpenEnv-compatible environment that trains and evaluates agents on real-world SRE incident response.

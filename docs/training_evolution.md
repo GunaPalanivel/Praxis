@@ -1,9 +1,9 @@
 # Training Evolution Log
 
-- Run name: `praxis-smoke-20260426-002923`
-- Created at: `2026-04-26T00:29:27.926296+00:00`
+- Run name: `praxis-smoke-20260426-034648`
+- Created at: `2026-04-26T03:47:01.804875+00:00`
 - Model: `Qwen/Qwen2.5-7B-Instruct`
-- Tasks: `single-service-alert`
+- Tasks: `cascading-platform-failure, single-service-alert`
 - Seed: `2026`
 
 ## Rollout Comparison
@@ -14,9 +14,9 @@
 
 ## Training-Metrics Progression
 
-- Logged points: `4`
-- Reward progression: `0.080000 -> 0.250000`
-- Loss progression: `0.920000 -> 0.750000`
+- Logged points: `170`
+- Reward progression: `0.068000 -> 0.250000`
+- Loss progression: `0.932000 -> 0.750000`
 
 ## Evidence Files
 
