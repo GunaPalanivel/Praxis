@@ -100,7 +100,10 @@ The **CPU** path skips **GRPOTrainer** (`--smoke`) but still hits the live Space
             "source": _src(
                 [
                     "# Clone Praxis (same layout HF Jobs checks out at PRAXIS_COMMIT)",
-                    "import os, shutil, subprocess, sys",
+                    "import os",
+                    "import shutil",
+                    "import subprocess",
+                    "import sys",
                     "from pathlib import Path",
                     "",
                     "REPO = Path(\"/content/Praxis\")",
@@ -170,7 +173,10 @@ The **CPU** path skips **GRPOTrainer** (`--smoke`) but still hits the live Space
             "source": _src(
                 [
                     "# Run canonical trainer via uv (PEP 723: trl, unsloth, transformers, …)",
-                    "import os, shutil, subprocess, sys",
+                    "import os",
+                    "import shutil",
+                    "import subprocess",
+                    "import sys",
                     "from pathlib import Path",
                     "",
                     "repo = Path.cwd()",
@@ -261,7 +267,7 @@ The **CPU** path skips **GRPOTrainer** (`--smoke`) but still hits the live Space
             "source": _src(
                 [
                     "# Optional: copy full checkpoint dir listing for judges",
-                    "import json, shutil",
+                    "import json",
                     "from pathlib import Path",
                     "",
                     "ck = Path(\"/content/Praxis/checkpoints/praxis-grpo\")",
