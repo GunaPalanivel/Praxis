@@ -27,6 +27,8 @@ First run downloads deps via `uv` (~10–25 min). You get **`metrics.csv` + `rew
 
 **Long production run (optional):** set env **`PRAXIS_COLAB_FULL=1`** (GPU) before the train cell for `--steps 200` and all four tasks (`scripts/submit_hf_grpo_job.py` parity). Expect long runtime + heavy `uv` resolve.
 
+**Do not submit toy smoke as evidence:** If you ever see **1 episode, G=2, lr=0.06**, that is **not** this notebook — it is a legacy/local path (e.g. `PRAXIS_NOTEBOOK_SMOKE` or an old `TrainConfig` script). This file always trains via **`train_praxis_grpo.py`** with **`1e-4`** and **`--group-size 8`**. Unset `PRAXIS_COLAB_FORCE_SMOKE` on GPU for real TRL; unset any stray **`PRAXIS_NOTEBOOK_SMOKE`** in your environment.
+
 **Reward contract:** full TRL path uses `reward_func` → HTTPS `POST /reset` / `POST /step` on **`https://gp5901-praxis.hf.space`**. Smoke uses fixed fallback commands per step.
 
 **Avoid HTTP 400 on `/step`:** Old Colab snippets that call `run_episode(task, logits, ...)` often omit `session_id` or send a blank `command`. Run the **optional HTTP helper** cell (after the health check) before any pasted legacy loop so `/step` receives a non-empty `command` from the server's `available_commands` plus `session_id` in the JSON body (and `X-Session-Id` header).
