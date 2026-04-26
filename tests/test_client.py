@@ -22,7 +22,9 @@ class _FakeResponse:
 class _FakeAsyncClient:
     def __init__(self) -> None:
         self.last_step_headers: dict[str, str] | None = None
+        self.last_step_json: dict | None = None
         self.last_state_headers: dict[str, str] | None = None
+        self.last_state_params: dict | None = None
         self.closed = False
 
     async def post(
@@ -54,6 +56,7 @@ class _FakeAsyncClient:
             )
         if path == "/step":
             self.last_step_headers = headers
+            self.last_step_json = json
             return _FakeResponse(
                 {
                     "observation": {
@@ -82,10 +85,14 @@ class _FakeAsyncClient:
         raise AssertionError(f"Unexpected POST path: {path}")
 
     async def get(
-        self, path: str, headers: dict[str, str] | None = None
+        self,
+        path: str,
+        headers: dict[str, str] | None = None,
+        params: dict[str, str] | None = None,
     ) -> _FakeResponse:
         if path == "/state":
             self.last_state_headers = headers
+            self.last_state_params = params
             return _FakeResponse(
                 {
                     "episode_id": "single-service-alert_1",
@@ -123,7 +130,12 @@ async def test_client_uses_session_header_for_step_and_state(
     state = await env.get_state()
 
     assert fake.last_step_headers == {"x-session-id": "session-123"}
+    assert fake.last_step_json == {
+        "command": "query_logs service=auth timerange=5m",
+        "session_id": "session-123",
+    }
     assert fake.last_state_headers == {"x-session-id": "session-123"}
+    assert fake.last_state_params == {"session_id": "session-123"}
     assert obs.mission_id == "mission-123"
     assert step.observation.phase == "exploration"
     assert state.mission_id == "mission-123"
