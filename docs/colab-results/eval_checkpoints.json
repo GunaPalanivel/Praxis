@@ -1,0 +1,66 @@
+{
+  "baseline_scores": {
+    "single-service-alert": 0.06260000000000002,
+    "ambiguous-incident": 0.028326666666666674,
+    "cascading-failure": 0.042243333333333334,
+    "memory-leak": 0.135
+  },
+  "trained_scores": {
+    "single-service-alert": 0.10097777777777779,
+    "ambiguous-incident": 0.01874,
+    "cascading-failure": 0.038900000000000004,
+    "memory-leak": 0.11833333333333333
+  },
+  "checkpoints": [
+    {
+      "episode": 10,
+      "task": "ambiguous-incident",
+      "eval_score": 0.0237
+    },
+    {
+      "episode": 20,
+      "task": "memory-leak",
+      "eval_score": 0.1218
+    },
+    {
+      "episode": 30,
+      "task": "ambiguous-incident",
+      "eval_score": 0.0241
+    },
+    {
+      "episode": 40,
+      "task": "memory-leak",
+      "eval_score": 0.16
+    },
+    {
+      "episode": 50,
+      "task": "ambiguous-incident",
+      "eval_score": 0.0205
+    },
+    {
+      "episode": 60,
+      "task": "memory-leak",
+      "eval_score": 0.1089
+    },
+    {
+      "episode": 70,
+      "task": "ambiguous-incident",
+      "eval_score": 0.0205
+    },
+    {
+      "episode": 80,
+      "task": "memory-leak",
+      "eval_score": 0.1033
+    }
+  ],
+  "config": {
+    "episodes": 80,
+    "group_size": 4,
+    "max_steps": 10,
+    "lr": 0.06,
+    "step_delay": 0.4,
+    "eval_every": 10,
+    "eval_episodes": 5
+  },
+  "total_episodes": 80
+}

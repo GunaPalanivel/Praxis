@@ -1,0 +1,635 @@
+[START] task=single-service-alert env=praxis model=softmax-grpo
+[STEP] step=1 action=check_config service=auth reward=0.10 done=false error=null
+[STEP] step=2 action=check_metrics service=auth metric=error_rate reward=0.05 done=false error=null
+[STEP] step=3 action=check_config service=auth reward=0.01 done=false error=null
+[STEP] step=4 action=restart_service service=auth reward=0.01 done=false error=null
+[STEP] step=5 action=restart_service service=auth reward=0.01 done=false error=null
+[STEP] step=6 action=query_logs service=auth timerange=5m reward=0.08 done=false error=null
+[STEP] step=7 action=diagnose root_cause=db_connection_failure reward=0.01 done=false error=null
+[STEP] step=8 action=escalate reason=need_senior_support reward=0.15 done=true error=null
+[END] success=false steps=8 score=0.053 rewards=0.10,0.05,0.01,0.01,0.01,0.08,0.01,0.15
+
+[START] task=ambiguous-incident env=praxis model=softmax-grpo
+[STEP] step=1 action=check_runbook service=dns-resolver reward=0.03 done=false error=null
+[STEP] step=2 action=restart_service service=dns-resolver reward=0.01 done=false error=null
+[STEP] step=3 action=check_metrics service=dns-resolver metric=resolution_failures reward=0.09 done=false error=null
+[STEP] step=4 action=escalate reason=cross_service_incident reward=0.01 done=true error=null
+[END] success=false steps=4 score=0.034 rewards=0.03,0.01,0.09,0.01
+
+[START] task=cascading-failure env=praxis model=softmax-grpo
+[STEP] step=1 action=query_logs service=api timerange=10m reward=0.02 done=false error=null
+[STEP] step=2 action=check_deps service=api reward=0.02 done=false error=null
+[STEP] step=3 action=query_logs service=database timerange=15m reward=0.04 done=false error=null
+[STEP] step=4 action=escalate reason=db_overload reward=0.08 done=true error=null
+[END] success=false steps=4 score=0.044 rewards=0.02,0.02,0.04,0.08
+
+[START] task=memory-leak env=praxis model=softmax-grpo
+[STEP] step=1 action=rollback_deploy service=worker reward=0.18 done=true error=null
+[END] success=true steps=1 score=0.185 rewards=0.18
+
+[START] task=single-service-alert env=praxis model=softmax-grpo
+[STEP] step=1 action=check_metrics service=auth metric=error_rate reward=0.05 done=false error=null
+[STEP] step=2 action=escalate reason=need_senior_support reward=0.01 done=true error=null
+[END] success=false steps=2 score=0.030 rewards=0.05,0.01
+
+[START] task=ambiguous-incident env=praxis model=softmax-grpo
+[STEP] step=1 action=check_deps service=app reward=0.01 done=false error=null
+[STEP] step=2 action=escalate reason=cross_service_incident reward=0.01 done=true error=null
+[END] success=false steps=2 score=0.010 rewards=0.01,0.01
+
+[START] task=cascading-failure env=praxis model=softmax-grpo
+[STEP] step=1 action=query_logs service=database timerange=15m reward=0.04 done=false error=null
+[STEP] step=2 action=query_logs service=analytics timerange=10m reward=0.04 done=false error=null
+[STEP] step=3 action=check_metrics service=database metric=connections reward=0.07 done=false error=null
+[STEP] step=4 action=query_logs service=database timerange=15m reward=0.01 done=false error=null
+[STEP] step=5 action=kill_query service=database query_id=runaway_analytics reward=0.08 done=false error=null
+[STEP] step=6 action=escalate reason=db_overload reward=0.08 done=true error=null
+[END] success=false steps=6 score=0.057 rewards=0.04,0.04,0.07,0.01,0.08,0.08
+
+[START] task=memory-leak env=praxis model=softmax-grpo
+[STEP] step=1 action=escalate reason=oom_crash reward=0.01 done=true error=null
+[END] success=false steps=1 score=0.010 rewards=0.01
+
+[START] task=single-service-alert env=praxis model=softmax-grpo
+[STEP] step=1 action=diagnose root_cause=db_connection_failure reward=0.01 done=false error=null
+[STEP] step=2 action=diagnose root_cause=db_connection_failure reward=0.01 done=false error=null
+[STEP] step=3 action=diagnose root_cause=bad_config reward=0.20 done=false error=null
+[STEP] step=4 action=check_config service=auth reward=0.10 done=false error=null
+[STEP] step=5 action=query_logs service=auth timerange=5m reward=0.08 done=false error=null
+[STEP] step=6 action=diagnose root_cause=bad_config reward=0.20 done=false error=null
+[STEP] step=7 action=check_runbook service=auth reward=0.05 done=false error=null
+[STEP] step=8 action=check_runbook service=auth reward=0.01 done=false error=null
+[STEP] step=9 action=query_logs service=auth timerange=5m reward=0.01 done=false error=null
+[STEP] step=10 action=check_config service=auth reward=0.01 done=false error=null
+[END] success=false steps=10 score=0.068 rewards=0.01,0.01,0.20,0.10,0.08,0.20,0.05,0.01,0.01,0.01
+
+[START] task=ambiguous-incident env=praxis model=softmax-grpo
+[STEP] step=1 action=check_deps service=app reward=0.01 done=false error=null
+[STEP] step=2 action=check_deps service=app reward=0.01 done=false error=null
+[STEP] step=3 action=diagnose root_cause=dns_misconfiguration reward=0.01 done=false error=null
+[STEP] step=4 action=query_logs service=app timerange=10m reward=0.01 done=false error=null
+[STEP] step=5 action=query_logs service=dns-resolver timerange=10m reward=0.09 done=false error=null
+[STEP] step=6 action=check_runbook service=dns-resolver reward=0.03 done=false error=null
+[STEP] step=7 action=check_config service=dns-resolver reward=0.04 done=false error=null
+[STEP] step=8 action=check_deps service=app reward=0.01 done=false error=null
+[STEP] step=9 action=query_logs service=app timerange=10m reward=0.01 done=false error=null
+[STEP] step=10 action=check_config service=dns-resolver reward=0.01 done=false error=null
+[END] success=false steps=10 score=0.023 rewards=0.01,0.01,0.01,0.01,0.09,0.03,0.04,0.01,0.01,0.01
+
+[START] task=cascading-failure env=praxis model=softmax-grpo
+[STEP] step=1 action=query_logs service=database timerange=15m reward=0.04 done=false error=null
+[STEP] step=2 action=check_deps service=api reward=0.02 done=false error=null
+[STEP] step=3 action=check_metrics service=database metric=connections reward=0.07 done=false error=null
+[STEP] step=4 action=check_runbook service=database reward=0.02 done=false error=null
+[STEP] step=5 action=query_logs service=api timerange=10m reward=0.02 done=false error=null
+[STEP] step=6 action=query_logs service=database timerange=15m reward=0.01 done=false error=null
+[STEP] step=7 action=check_config service=database reward=0.02 done=false error=null
+[STEP] step=8 action=scale_resource service=database resource=connection_pool reward=0.07 done=false error=null
+[STEP] step=9 action=scale_resource service=database resource=connection_pool reward=0.07 done=false error=null
+[STEP] step=10 action=check_deps service=api reward=0.01 done=false error=null
+[END] success=false steps=10 score=0.038 rewards=0.04,0.02,0.07,0.02,0.02,0.01,0.02,0.07,0.07,0.01
+
+[START] task=memory-leak env=praxis model=softmax-grpo
+[STEP] step=1 action=rollback_deploy service=worker reward=0.18 done=true error=null
+[END] success=true steps=1 score=0.185 rewards=0.18
+
+[START] task=single-service-alert env=praxis model=softmax-grpo
+[STEP] step=1 action=diagnose root_cause=db_connection_failure reward=0.01 done=false error=null
+[STEP] step=2 action=check_metrics service=auth metric=error_rate reward=0.05 done=false error=null
+[STEP] step=3 action=diagnose root_cause=db_connection_failure reward=0.01 done=false error=null
+[STEP] step=4 action=query_logs service=auth timerange=5m reward=0.08 done=false error=null
+[STEP] step=5 action=check_metrics service=auth metric=error_rate reward=0.01 done=false error=null
+[STEP] step=6 action=diagnose root_cause=db_connection_failure reward=0.01 done=false error=null
+[STEP] step=7 action=check_metrics service=auth metric=error_rate reward=0.01 done=false error=null
+[STEP] step=8 action=check_config service=auth reward=0.10 done=false error=null
+[STEP] step=9 action=diagnose root_cause=db_connection_failure reward=0.01 done=false error=null
+[STEP] step=10 action=restart_service service=auth reward=0.01 done=false error=null
+[END] success=false steps=10 score=0.030 rewards=0.01,0.05,0.01,0.08,0.01,0.01,0.01,0.10,0.01,0.01
+
+[START] task=ambiguous-incident env=praxis model=softmax-grpo
+[STEP] step=1 action=check_config service=dns-resolver reward=0.04 done=false error=null
+[STEP] step=2 action=check_runbook service=dns-resolver reward=0.03 done=false error=null
+[STEP] step=3 action=restart_service service=dns-resolver reward=0.01 done=false error=null
+[STEP] step=4 action=check_runbook service=dns-resolver reward=0.01 done=false error=null
+[STEP] step=5 action=restart_service service=dns-resolver reward=0.01 done=false error=null
+[STEP] step=6 action=check_config service=dns-resolver reward=0.01 done=false error=null
+[STEP] step=7 action=restart_service service=dns-resolver reward=0.01 done=false error=null
+[STEP] step=8 action=query_logs service=app timerange=10m reward=0.01 done=false error=null
+[STEP] step=9 action=escalate reason=cross_service_incident reward=0.01 done=true error=null
+[END] success=false steps=9 score=0.015 rewards=0.04,0.03,0.01,0.01,0.01,0.01,0.01,0.01,0.01
+
+[START] task=cascading-failure env=praxis model=softmax-grpo
+[STEP] step=1 action=check_config service=database reward=0.02 done=false error=null
+[STEP] step=2 action=check_deps service=api reward=0.02 done=false error=null
+[STEP] step=3 action=query_logs service=database timerange=15m reward=0.04 done=false error=null
+[STEP] step=4 action=check_deps service=api reward=0.01 done=false error=null
+[STEP] step=5 action=check_metrics service=database metric=connections reward=0.07 done=false error=null
+[STEP] step=6 action=scale_resource service=database resource=connection_pool reward=0.07 done=false error=null
+[STEP] step=7 action=scale_resource service=database resource=connection_pool reward=0.07 done=false error=null
+[STEP] step=8 action=check_runbook service=database reward=0.02 done=false error=null
+[STEP] step=9 action=query_logs service=analytics timerange=10m reward=0.04 done=false error=null
+[STEP] step=10 action=check_runbook service=database reward=0.01 done=false error=null
+[END] success=false steps=10 score=0.040 rewards=0.02,0.02,0.04,0.01,0.07,0.07,0.07,0.02,0.04,0.01
+
+[START] task=memory-leak env=praxis model=softmax-grpo
+[STEP] step=1 action=diagnose root_cause=large_batch_size_oom reward=0.14 done=false error=null
+[STEP] step=2 action=check_config service=worker reward=0.04 done=false error=null
+[STEP] step=3 action=check_config service=worker reward=0.01 done=false error=null
+[STEP] step=4 action=scale_resource service=worker resource=memory reward=0.18 done=true error=null
+[END] success=false steps=4 score=0.091 rewards=0.14,0.04,0.01,0.18
+
+[START] task=single-service-alert env=praxis model=softmax-grpo
+[STEP] step=1 action=diagnose root_cause=db_connection_failure reward=0.01 done=false error=null
+[STEP] step=2 action=check_metrics service=auth metric=error_rate reward=0.05 done=false error=null
+[STEP] step=3 action=diagnose root_cause=bad_config reward=0.20 done=false error=null
+[STEP] step=4 action=diagnose root_cause=db_connection_failure reward=0.01 done=false error=null
+[STEP] step=5 action=check_metrics service=auth metric=error_rate reward=0.01 done=false error=null
+[STEP] step=6 action=diagnose root_cause=bad_config reward=0.20 done=false error=null
+[STEP] step=7 action=check_config service=auth reward=0.10 done=false error=null
+[STEP] step=8 action=escalate reason=need_senior_support reward=0.01 done=true error=null
+[END] success=false steps=8 score=0.074 rewards=0.01,0.05,0.20,0.01,0.01,0.20,0.10,0.01
+
+[START] task=ambiguous-incident env=praxis model=softmax-grpo
+[STEP] step=1 action=check_runbook service=dns-resolver reward=0.03 done=false error=null
+[STEP] step=2 action=query_logs service=app timerange=10m reward=0.01 done=false error=null
+[STEP] step=3 action=check_metrics service=dns-resolver metric=resolution_failures reward=0.09 done=false error=null
+[STEP] step=4 action=check_metrics service=dns-resolver metric=resolution_failures reward=0.01 done=false error=null
+[STEP] step=5 action=check_metrics service=app metric=error_rate reward=0.01 done=false error=null
+[STEP] step=6 action=restart_service service=dns-resolver reward=0.01 done=false error=null
+[STEP] step=7 action=restart_service service=dns-resolver reward=0.01 done=false error=null
+[STEP] step=8 action=check_runbook service=dns-resolver reward=0.01 done=false error=null
+[STEP] step=9 action=query_logs service=app timerange=10m reward=0.01 done=false error=null
+[STEP] step=10 action=diagnose root_cause=dns_misconfiguration reward=0.01 done=false error=null
+[END] success=false steps=10 score=0.020 rewards=0.03,0.01,0.09,0.01,0.01,0.01,0.01,0.01,0.01,0.01
+
+[START] task=cascading-failure env=praxis model=softmax-grpo
+[STEP] step=1 action=query_logs service=database timerange=15m reward=0.04 done=false error=null
+[STEP] step=2 action=query_logs service=analytics timerange=10m reward=0.04 done=false error=null
+[STEP] step=3 action=query_logs service=api timerange=10m reward=0.02 done=false error=null
+[STEP] step=4 action=check_deps service=api reward=0.02 done=false error=null
+[STEP] step=5 action=check_metrics service=database metric=connections reward=0.07 done=false error=null
+[STEP] step=6 action=check_config service=database reward=0.02 done=false error=null
+[STEP] step=7 action=diagnose root_cause=db_connection_pool_exhausted reward=0.13 done=false error=null
+[STEP] step=8 action=check_config service=database reward=0.01 done=false error=null
+[STEP] step=9 action=query_logs service=api timerange=10m reward=0.01 done=false error=null
+[STEP] step=10 action=query_logs service=api timerange=10m reward=0.01 done=false error=null
+[END] success=false steps=10 score=0.040 rewards=0.04,0.04,0.02,0.02,0.07,0.02,0.13,0.01,0.01,0.01
+
+[START] task=memory-leak env=praxis model=softmax-grpo
+[STEP] step=1 action=query_logs service=worker timerange=10m reward=0.04 done=false error=null
+[STEP] step=2 action=diagnose root_cause=memory_leak reward=0.14 done=false error=null
+[STEP] step=3 action=rollback_deploy service=worker reward=0.18 done=true error=null
+[END] success=false steps=3 score=0.118 rewards=0.04,0.14,0.18
+
+[START] task=single-service-alert env=praxis model=softmax-grpo
+[STEP] step=1 action=escalate reason=need_senior_support reward=0.01 done=true error=null
+[END] success=false steps=1 score=0.010 rewards=0.01
+
+[START] task=ambiguous-incident env=praxis model=softmax-grpo
+[STEP] step=1 action=check_metrics service=app metric=error_rate reward=0.01 done=false error=null
+[STEP] step=2 action=check_config service=dns-resolver reward=0.04 done=false error=null
+[STEP] step=3 action=diagnose root_cause=dns_misconfiguration reward=0.01 done=false error=null
+[STEP] step=4 action=check_metrics service=app metric=error_rate reward=0.01 done=false error=null
+[STEP] step=5 action=check_runbook service=dns-resolver reward=0.03 done=false error=null
+[STEP] step=6 action=escalate reason=cross_service_incident reward=0.01 done=true error=null
+[END] success=false steps=6 score=0.018 rewards=0.01,0.04,0.01,0.01,0.03,0.01
+
+[START] task=cascading-failure env=praxis model=softmax-grpo
+[STEP] step=1 action=escalate reason=db_overload reward=0.01 done=true error=null
+[END] success=false steps=1 score=0.010 rewards=0.01
+
+[START] task=memory-leak env=praxis model=softmax-grpo
+[STEP] step=1 action=check_runbook service=worker reward=0.01 done=false error=null
+[STEP] step=2 action=diagnose root_cause=large_batch_size_oom reward=0.14 done=false error=null
+[STEP] step=3 action=check_runbook service=worker reward=0.01 done=false error=null
+[STEP] step=4 action=diagnose root_cause=memory_leak reward=0.14 done=false error=null
+[STEP] step=5 action=rollback_deploy service=worker reward=0.18 done=true error=null
+[END] success=false steps=5 score=0.095 rewards=0.01,0.14,0.01,0.14,0.18
+
+[START] task=single-service-alert env=praxis model=softmax-grpo
+[STEP] step=1 action=diagnose root_cause=bad_config reward=0.20 done=false error=null
+[STEP] step=2 action=escalate reason=need_senior_support reward=0.01 done=true error=null
+[END] success=false steps=2 score=0.105 rewards=0.20,0.01
+
+[START] task=ambiguous-incident env=praxis model=softmax-grpo
+[STEP] step=1 action=escalate reason=cross_service_incident reward=0.01 done=true error=null
+[END] success=false steps=1 score=0.010 rewards=0.01
+
+[START] task=cascading-failure env=praxis model=softmax-grpo
+[STEP] step=1 action=check_runbook service=database reward=0.02 done=false error=null
+[STEP] step=2 action=query_logs service=database timerange=15m reward=0.04 done=false error=null
+[STEP] step=3 action=check_runbook service=database reward=0.01 done=false error=null
+[STEP] step=4 action=query_logs service=database timerange=15m reward=0.01 done=false error=null
+[STEP] step=5 action=diagnose root_cause=db_connection_pool_exhausted reward=0.13 done=false error=null
+[STEP] step=6 action=kill_query service=database query_id=runaway_analytics reward=0.08 done=false error=null
+[STEP] step=7 action=check_deps service=api reward=0.02 done=false error=null
+[STEP] step=8 action=check_deps service=api reward=0.01 done=false error=null
+[STEP] step=9 action=check_config service=database reward=0.02 done=false error=null
+[STEP] step=10 action=check_deps service=api reward=0.01 done=false error=null
+[END] success=false steps=10 score=0.037 rewards=0.02,0.04,0.01,0.01,0.13,0.08,0.02,0.01,0.02,0.01
+
+[START] task=memory-leak env=praxis model=softmax-grpo
+[STEP] step=1 action=check_config service=worker reward=0.04 done=false error=null
+[STEP] step=2 action=query_logs service=worker timerange=10m reward=0.04 done=false error=null
+[STEP] step=3 action=diagnose root_cause=large_batch_size_oom reward=0.14 done=false error=null
+[STEP] step=4 action=scale_resource service=worker resource=memory reward=0.18 done=true error=null
+[END] success=false steps=4 score=0.098 rewards=0.04,0.04,0.14,0.18
+
+[START] task=single-service-alert env=praxis model=softmax-grpo
+[STEP] step=1 action=escalate reason=need_senior_support reward=0.01 done=true error=null
+[END] success=false steps=1 score=0.010 rewards=0.01
+
+[START] task=ambiguous-incident env=praxis model=softmax-grpo
+[STEP] step=1 action=check_metrics service=app metric=error_rate reward=0.01 done=false error=null
+[STEP] step=2 action=diagnose root_cause=dns_misconfiguration reward=0.01 done=false error=null
+[STEP] step=3 action=check_metrics service=app metric=error_rate reward=0.01 done=false error=null
+[STEP] step=4 action=check_runbook service=dns-resolver reward=0.03 done=false error=null
+[STEP] step=5 action=check_config service=dns-resolver reward=0.04 done=false error=null
+[STEP] step=6 action=check_metrics service=app metric=error_rate reward=0.01 done=false error=null
+[STEP] step=7 action=restart_service service=dns-resolver reward=0.01 done=false error=null
+[STEP] step=8 action=restart_service service=dns-resolver reward=0.01 done=false error=null
+[STEP] step=9 action=escalate reason=cross_service_incident reward=0.01 done=true error=null
+[END] success=false steps=9 score=0.015 rewards=0.01,0.01,0.01,0.03,0.04,0.01,0.01,0.01,0.01
+
+[START] task=cascading-failure env=praxis model=softmax-grpo
+[STEP] step=1 action=query_logs service=database timerange=15m reward=0.04 done=false error=null
+[STEP] step=2 action=check_metrics service=database metric=connections reward=0.07 done=false error=null
+[STEP] step=3 action=check_runbook service=database reward=0.02 done=false error=null
+[STEP] step=4 action=check_config service=database reward=0.02 done=false error=null
+[STEP] step=5 action=check_config service=database reward=0.01 done=false error=null
+[STEP] step=6 action=query_logs service=api timerange=10m reward=0.02 done=false error=null
+[STEP] step=7 action=check_config service=database reward=0.01 done=false error=null
+[STEP] step=8 action=check_deps service=api reward=0.02 done=false error=null
+[STEP] step=9 action=kill_query service=database query_id=runaway_analytics reward=0.08 done=false error=null
+[STEP] step=10 action=check_runbook service=database reward=0.01 done=false error=null
+[END] success=false steps=10 score=0.033 rewards=0.04,0.07,0.02,0.02,0.01,0.02,0.01,0.02,0.08,0.01
+
+[START] task=memory-leak env=praxis model=softmax-grpo
+[STEP] step=1 action=escalate reason=oom_crash reward=0.01 done=true error=null
+[END] success=false steps=1 score=0.010 rewards=0.01
+
+[START] task=single-service-alert env=praxis model=softmax-grpo
+[STEP] step=1 action=query_logs service=auth timerange=5m reward=0.08 done=false error=null
+[STEP] step=2 action=escalate reason=need_senior_support reward=0.01 done=true error=null
+[END] success=false steps=2 score=0.045 rewards=0.08,0.01
+
+[START] task=ambiguous-incident env=praxis model=softmax-grpo
+[STEP] step=1 action=check_runbook service=dns-resolver reward=0.03 done=false error=null
+[STEP] step=2 action=query_logs service=app timerange=10m reward=0.01 done=false error=null
+[STEP] step=3 action=check_deps service=app reward=0.01 done=false error=null
+[STEP] step=4 action=query_logs service=dns-resolver timerange=10m reward=0.09 done=false error=null
+[STEP] step=5 action=check_deps service=app reward=0.01 done=false error=null
+[STEP] step=6 action=check_metrics service=app metric=error_rate reward=0.01 done=false error=null
+[STEP] step=7 action=check_config service=dns-resolver reward=0.04 done=false error=null
+[STEP] step=8 action=check_runbook service=dns-resolver reward=0.01 done=false error=null
+[STEP] step=9 action=check_metrics service=dns-resolver metric=resolution_failures reward=0.09 done=false error=null
+[STEP] step=10 action=check_metrics service=app metric=error_rate reward=0.01 done=false error=null
+[END] success=false steps=10 score=0.031 rewards=0.03,0.01,0.01,0.09,0.01,0.01,0.04,0.01,0.09,0.01
+
+[START] task=cascading-failure env=praxis model=softmax-grpo
+[STEP] step=1 action=check_config service=database reward=0.02 done=false error=null
+[STEP] step=2 action=check_config service=database reward=0.01 done=false error=null
+[STEP] step=3 action=check_runbook service=database reward=0.02 done=false error=null
+[STEP] step=4 action=escalate reason=db_overload reward=0.01 done=true error=null
+[END] success=false steps=4 score=0.017 rewards=0.02,0.01,0.02,0.01
+
+[START] task=memory-leak env=praxis model=softmax-grpo
+[STEP] step=1 action=diagnose root_cause=large_batch_size_oom reward=0.14 done=false error=null
+[STEP] step=2 action=diagnose root_cause=large_batch_size_oom reward=0.14 done=false error=null
+[STEP] step=3 action=check_metrics service=worker metric=memory reward=0.08 done=false error=null
+[STEP] step=4 action=check_runbook service=worker reward=0.01 done=false error=null
+[STEP] step=5 action=rollback_deploy service=worker reward=0.18 done=true error=null
+[END] success=false steps=5 score=0.110 rewards=0.14,0.14,0.08,0.01,0.18
+
+[START] task=single-service-alert env=praxis model=softmax-grpo
+[STEP] step=1 action=check_runbook service=auth reward=0.05 done=false error=null
+[STEP] step=2 action=diagnose root_cause=db_connection_failure reward=0.01 done=false error=null
+[STEP] step=3 action=diagnose root_cause=bad_config reward=0.20 done=false error=null
+[STEP] step=4 action=check_runbook service=auth reward=0.01 done=false error=null
+[STEP] step=5 action=restart_service service=auth reward=0.01 done=false error=null
+[STEP] step=6 action=query_logs service=auth timerange=5m reward=0.08 done=false error=null
+[STEP] step=7 action=check_runbook service=auth reward=0.01 done=false error=null
+[STEP] step=8 action=diagnose root_cause=bad_config reward=0.20 done=false error=null
+[STEP] step=9 action=escalate reason=need_senior_support reward=0.01 done=true error=null
+[END] success=false steps=9 score=0.064 rewards=0.05,0.01,0.20,0.01,0.01,0.08,0.01,0.20,0.01
+
+[START] task=ambiguous-incident env=praxis model=softmax-grpo
+[STEP] step=1 action=check_metrics service=app metric=error_rate reward=0.01 done=false error=null
+[STEP] step=2 action=check_runbook service=dns-resolver reward=0.03 done=false error=null
+[STEP] step=3 action=check_config service=dns-resolver reward=0.04 done=false error=null
+[STEP] step=4 action=escalate reason=cross_service_incident reward=0.01 done=true error=null
+[END] success=false steps=4 score=0.022 rewards=0.01,0.03,0.04,0.01
+
+[START] task=cascading-failure env=praxis model=softmax-grpo
+[STEP] step=1 action=escalate reason=db_overload reward=0.01 done=true error=null
+[END] success=false steps=1 score=0.010 rewards=0.01
+
+[START] task=memory-leak env=praxis model=softmax-grpo
+[STEP] step=1 action=diagnose root_cause=large_batch_size_oom reward=0.14 done=false error=null
+[STEP] step=2 action=diagnose root_cause=memory_leak reward=0.14 done=false error=null
+[STEP] step=3 action=scale_resource service=worker resource=memory reward=0.18 done=true error=null
+[END] success=true steps=3 score=0.152 rewards=0.14,0.14,0.18
+
+[START] task=single-service-alert env=praxis model=softmax-grpo
+[STEP] step=1 action=check_runbook service=auth reward=0.05 done=false error=null
+[STEP] step=2 action=restart_service service=auth reward=0.01 done=false error=null
+[STEP] step=3 action=check_runbook service=auth reward=0.01 done=false error=null
+[STEP] step=4 action=check_runbook service=auth reward=0.01 done=false error=null
+[STEP] step=5 action=rollback_deploy service=auth reward=0.25 done=true error=null
+[END] success=false steps=5 score=0.066 rewards=0.05,0.01,0.01,0.01,0.25
+
+[START] task=ambiguous-incident env=praxis model=softmax-grpo
+[STEP] step=1 action=check_runbook service=dns-resolver reward=0.03 done=false error=null
+[STEP] step=2 action=escalate reason=cross_service_incident reward=0.01 done=true error=null
+[END] success=false steps=2 score=0.018 rewards=0.03,0.01
+
+[START] task=cascading-failure env=praxis model=softmax-grpo
+[STEP] step=1 action=check_runbook service=database reward=0.02 done=false error=null
+[STEP] step=2 action=check_metrics service=database metric=connections reward=0.07 done=false error=null
+[STEP] step=3 action=escalate reason=db_overload reward=0.01 done=true error=null
+[END] success=false steps=3 score=0.036 rewards=0.02,0.07,0.01
+
+[START] task=memory-leak env=praxis model=softmax-grpo
+[STEP] step=1 action=check_config service=worker reward=0.04 done=false error=null
+[STEP] step=2 action=diagnose root_cause=memory_leak reward=0.14 done=false error=null
+[STEP] step=3 action=check_metrics service=worker metric=memory reward=0.08 done=false error=null
+[STEP] step=4 action=diagnose root_cause=large_batch_size_oom reward=0.14 done=false error=null
+[STEP] step=5 action=rollback_deploy service=worker reward=0.18 done=true error=null
+[END] success=false steps=5 score=0.115 rewards=0.04,0.14,0.08,0.14,0.18
+
+[START] task=single-service-alert env=praxis model=softmax-grpo
+[STEP] step=1 action=rollback_deploy service=auth reward=0.25 done=true error=null
+[END] success=true steps=1 score=0.250 rewards=0.25
+
+[START] task=ambiguous-incident env=praxis model=softmax-grpo
+[STEP] step=1 action=check_runbook service=dns-resolver reward=0.03 done=false error=null
+[STEP] step=2 action=check_metrics service=app metric=error_rate reward=0.01 done=false error=null
+[STEP] step=3 action=restart_service service=dns-resolver reward=0.01 done=false error=null
+[STEP] step=4 action=check_metrics service=dns-resolver metric=resolution_failures reward=0.09 done=false error=null
+[STEP] step=5 action=check_runbook service=dns-resolver reward=0.01 done=false error=null
+[STEP] step=6 action=diagnose root_cause=dns_misconfiguration reward=0.01 done=false error=null
+[STEP] step=7 action=check_metrics service=app metric=error_rate reward=0.01 done=false error=null
+[STEP] step=8 action=check_metrics service=app metric=error_rate reward=0.01 done=false error=null
+[STEP] step=9 action=check_metrics service=app metric=error_rate reward=0.01 done=false error=null
+[STEP] step=10 action=check_metrics service=app metric=error_rate reward=0.01 done=false error=null
+[END] success=false steps=10 score=0.020 rewards=0.03,0.01,0.01,0.09,0.01,0.01,0.01,0.01,0.01,0.01
+
+[START] task=cascading-failure env=praxis model=softmax-grpo
+[STEP] step=1 action=escalate reason=db_overload reward=0.01 done=true error=null
+[END] success=false steps=1 score=0.010 rewards=0.01
+
+[START] task=memory-leak env=praxis model=softmax-grpo
+[STEP] step=1 action=rollback_deploy service=worker reward=0.18 done=true error=null
+[END] success=true steps=1 score=0.185 rewards=0.18
+
+[START] task=single-service-alert env=praxis model=softmax-grpo
+[STEP] step=1 action=query_logs service=auth timerange=5m reward=0.08 done=false error=null
+[STEP] step=2 action=check_runbook service=auth reward=0.05 done=false error=null
+[STEP] step=3 action=query_logs service=auth timerange=5m reward=0.01 done=false error=null
+[STEP] step=4 action=escalate reason=need_senior_support reward=0.01 done=true error=null
+[END] success=false steps=4 score=0.038 rewards=0.08,0.05,0.01,0.01
+
+[START] task=ambiguous-incident env=praxis model=softmax-grpo
+[STEP] step=1 action=escalate reason=cross_service_incident reward=0.01 done=true error=null
+[END] success=false steps=1 score=0.010 rewards=0.01
+
+[START] task=cascading-failure env=praxis model=softmax-grpo
+[STEP] step=1 action=query_logs service=analytics timerange=10m reward=0.04 done=false error=null
+[STEP] step=2 action=check_runbook service=database reward=0.02 done=false error=null
+[STEP] step=3 action=scale_resource service=database resource=connection_pool reward=0.07 done=false error=null
+[STEP] step=4 action=diagnose root_cause=db_connection_pool_exhausted reward=0.13 done=false error=null
+[STEP] step=5 action=diagnose root_cause=db_connection_pool_exhausted reward=0.13 done=false error=null
+[STEP] step=6 action=kill_query service=database query_id=runaway_analytics reward=0.08 done=true error=null
+[END] success=false steps=6 score=0.082 rewards=0.04,0.02,0.07,0.13,0.13,0.08
+
+[START] task=memory-leak env=praxis model=softmax-grpo
+[STEP] step=1 action=scale_resource service=worker resource=memory reward=0.18 done=true error=null
+[END] success=true steps=1 score=0.185 rewards=0.18
+
+[START] task=single-service-alert env=praxis model=softmax-grpo
+[STEP] step=1 action=escalate reason=need_senior_support reward=0.01 done=true error=null
+[END] success=false steps=1 score=0.010 rewards=0.01
+
+[START] task=ambiguous-incident env=praxis model=softmax-grpo
+[STEP] step=1 action=escalate reason=cross_service_incident reward=0.01 done=true error=null
+[END] success=false steps=1 score=0.010 rewards=0.01
+
+[START] task=cascading-failure env=praxis model=softmax-grpo
+[STEP] step=1 action=diagnose root_cause=db_connection_pool_exhausted reward=0.13 done=false error=null
+[STEP] step=2 action=query_logs service=api timerange=10m reward=0.02 done=false error=null
+[STEP] step=3 action=query_logs service=database timerange=15m reward=0.04 done=false error=null
+[STEP] step=4 action=check_deps service=api reward=0.02 done=false error=null
+[STEP] step=5 action=diagnose root_cause=db_connection_pool_exhausted reward=0.13 done=false error=null
+[STEP] step=6 action=escalate reason=db_overload reward=0.08 done=true error=null
+[END] success=false steps=6 score=0.074 rewards=0.13,0.02,0.04,0.02,0.13,0.08
+
+[START] task=memory-leak env=praxis model=softmax-grpo
+[STEP] step=1 action=scale_resource service=worker resource=memory reward=0.18 done=true error=null
+[END] success=true steps=1 score=0.185 rewards=0.18
+
+[START] task=single-service-alert env=praxis model=softmax-grpo
+[STEP] step=1 action=query_logs service=auth timerange=5m reward=0.08 done=false error=null
+[STEP] step=2 action=escalate reason=need_senior_support reward=0.01 done=true error=null
+[END] success=false steps=2 score=0.045 rewards=0.08,0.01
+
+[START] task=ambiguous-incident env=praxis model=softmax-grpo
+[STEP] step=1 action=check_metrics service=dns-resolver metric=resolution_failures reward=0.09 done=false error=null
+[STEP] step=2 action=check_deps service=app reward=0.01 done=false error=null
+[STEP] step=3 action=query_logs service=app timerange=10m reward=0.01 done=false error=null
+[STEP] step=4 action=restart_service service=dns-resolver reward=0.01 done=false error=null
+[STEP] step=5 action=check_runbook service=dns-resolver reward=0.03 done=false error=null
+[STEP] step=6 action=diagnose root_cause=dns_misconfiguration reward=0.01 done=false error=null
+[STEP] step=7 action=check_deps service=app reward=0.01 done=false error=null
+[STEP] step=8 action=diagnose root_cause=dns_misconfiguration reward=0.01 done=false error=null
+[STEP] step=9 action=escalate reason=cross_service_incident reward=0.01 done=true error=null
+[END] success=false steps=9 score=0.021 rewards=0.09,0.01,0.01,0.01,0.03,0.01,0.01,0.01,0.01
+
+[START] task=cascading-failure env=praxis model=softmax-grpo
+[STEP] step=1 action=query_logs service=api timerange=10m reward=0.02 done=false error=null
+[STEP] step=2 action=check_deps service=api reward=0.02 done=false error=null
+[STEP] step=3 action=kill_query service=database query_id=runaway_analytics reward=0.08 done=false error=null
+[STEP] step=4 action=escalate reason=db_overload reward=0.01 done=true error=null
+[END] success=false steps=4 score=0.036 rewards=0.02,0.02,0.08,0.01
+
+[START] task=memory-leak env=praxis model=softmax-grpo
+[STEP] step=1 action=query_logs service=worker timerange=10m reward=0.04 done=false error=null
+[STEP] step=2 action=rollback_deploy service=worker reward=0.18 done=true error=null
+[END] success=false steps=2 score=0.110 rewards=0.04,0.18
+
+[START] task=single-service-alert env=praxis model=softmax-grpo
+[STEP] step=1 action=check_config service=auth reward=0.10 done=false error=null
+[STEP] step=2 action=check_metrics service=auth metric=error_rate reward=0.05 done=false error=null
+[STEP] step=3 action=check_runbook service=auth reward=0.05 done=false error=null
+[STEP] step=4 action=escalate reason=need_senior_support reward=0.15 done=true error=null
+[END] success=false steps=4 score=0.087 rewards=0.10,0.05,0.05,0.15
+
+[START] task=ambiguous-incident env=praxis model=softmax-grpo
+[STEP] step=1 action=escalate reason=cross_service_incident reward=0.01 done=true error=null
+[END] success=false steps=1 score=0.010 rewards=0.01
+
+[START] task=cascading-failure env=praxis model=softmax-grpo
+[STEP] step=1 action=check_config service=database reward=0.02 done=false error=null
+[STEP] step=2 action=check_config service=database reward=0.01 done=false error=null
+[STEP] step=3 action=scale_resource service=database resource=connection_pool reward=0.07 done=false error=null
+[STEP] step=4 action=check_deps service=api reward=0.02 done=false error=null
+[STEP] step=5 action=query_logs service=api timerange=10m reward=0.02 done=false error=null
+[STEP] step=6 action=scale_resource service=database resource=connection_pool reward=0.07 done=false error=null
+[STEP] step=7 action=check_deps service=api reward=0.01 done=false error=null
+[STEP] step=8 action=query_logs service=analytics timerange=10m reward=0.04 done=false error=null
+[STEP] step=9 action=diagnose root_cause=db_connection_pool_exhausted reward=0.13 done=false error=null
+[STEP] step=10 action=diagnose root_cause=db_connection_pool_exhausted reward=0.13 done=false error=null
+[END] success=false steps=10 score=0.055 rewards=0.02,0.01,0.07,0.02,0.02,0.07,0.01,0.04,0.13,0.13
+
+[START] task=memory-leak env=praxis model=softmax-grpo
+[STEP] step=1 action=check_metrics service=worker metric=memory reward=0.08 done=false error=null
+[STEP] step=2 action=check_metrics service=worker metric=memory reward=0.01 done=false error=null
+[STEP] step=3 action=query_logs service=worker timerange=10m reward=0.04 done=false error=null
+[STEP] step=4 action=check_config service=worker reward=0.04 done=false error=null
+[STEP] step=5 action=escalate reason=oom_crash reward=0.10 done=true error=null
+[END] success=false steps=5 score=0.052 rewards=0.08,0.01,0.04,0.04,0.10
+
+[START] task=single-service-alert env=praxis model=softmax-grpo
+[STEP] step=1 action=query_logs service=auth timerange=5m reward=0.08 done=false error=null
+[STEP] step=2 action=diagnose root_cause=bad_config reward=0.20 done=false error=null
+[STEP] step=3 action=diagnose root_cause=bad_config reward=0.20 done=false error=null
+[STEP] step=4 action=check_runbook service=auth reward=0.05 done=false error=null
+[STEP] step=5 action=restart_service service=auth reward=0.01 done=false error=null
+[STEP] step=6 action=query_logs service=auth timerange=5m reward=0.01 done=false error=null
+[STEP] step=7 action=check_metrics service=auth metric=error_rate reward=0.05 done=false error=null
+[STEP] step=8 action=escalate reason=need_senior_support reward=0.15 done=true error=null
+[END] success=false steps=8 score=0.094 rewards=0.08,0.20,0.20,0.05,0.01,0.01,0.05,0.15
+
+[START] task=ambiguous-incident env=praxis model=softmax-grpo
+[STEP] step=1 action=check_metrics service=dns-resolver metric=resolution_failures reward=0.09 done=false error=null
+[STEP] step=2 action=check_config service=dns-resolver reward=0.04 done=false error=null
+[STEP] step=3 action=query_logs service=dns-resolver timerange=10m reward=0.09 done=false error=null
+[STEP] step=4 action=query_logs service=app timerange=10m reward=0.01 done=false error=null
+[STEP] step=5 action=check_config service=dns-resolver reward=0.01 done=false error=null
+[STEP] step=6 action=query_logs service=dns-resolver timerange=10m reward=0.01 done=false error=null
+[STEP] step=7 action=check_metrics service=dns-resolver metric=resolution_failures reward=0.01 done=false error=null
+[STEP] step=8 action=check_metrics service=dns-resolver metric=resolution_failures reward=0.01 done=false error=null
+[STEP] step=9 action=check_config service=dns-resolver reward=0.01 done=false error=null
+[STEP] step=10 action=query_logs service=dns-resolver timerange=10m reward=0.01 done=false error=null
+[END] success=false steps=10 score=0.030 rewards=0.09,0.04,0.09,0.01,0.01,0.01,0.01,0.01,0.01,0.01
+
+[START] task=cascading-failure env=praxis model=softmax-grpo
+[STEP] step=1 action=scale_resource service=database resource=connection_pool reward=0.07 done=false error=null
+[STEP] step=2 action=query_logs service=api timerange=10m reward=0.02 done=false error=null
+[STEP] step=3 action=check_runbook service=database reward=0.02 done=false error=null
+[STEP] step=4 action=escalate reason=db_overload reward=0.01 done=true error=null
+[END] success=false steps=4 score=0.033 rewards=0.07,0.02,0.02,0.01
+
+[START] task=memory-leak env=praxis model=softmax-grpo
+[STEP] step=1 action=check_runbook service=worker reward=0.01 done=false error=null
+[STEP] step=2 action=check_metrics service=worker metric=memory reward=0.08 done=false error=null
+[STEP] step=3 action=rollback_deploy service=worker reward=0.18 done=true error=null
+[END] success=false steps=3 score=0.093 rewards=0.01,0.08,0.18
+
+[START] task=single-service-alert env=praxis model=softmax-grpo
+[STEP] step=1 action=escalate reason=need_senior_support reward=0.01 done=true error=null
+[END] success=false steps=1 score=0.010 rewards=0.01
+
+[START] task=ambiguous-incident env=praxis model=softmax-grpo
+[STEP] step=1 action=check_deps service=app reward=0.01 done=false error=null
+[STEP] step=2 action=restart_service service=dns-resolver reward=0.01 done=false error=null
+[STEP] step=3 action=escalate reason=cross_service_incident reward=0.01 done=true error=null
+[END] success=false steps=3 score=0.010 rewards=0.01,0.01,0.01
+
+[START] task=cascading-failure env=praxis model=softmax-grpo
+[STEP] step=1 action=scale_resource service=database resource=connection_pool reward=0.07 done=false error=null
+[STEP] step=2 action=diagnose root_cause=db_connection_pool_exhausted reward=0.13 done=false error=null
+[STEP] step=3 action=query_logs service=database timerange=15m reward=0.04 done=false error=null
+[STEP] step=4 action=check_deps service=api reward=0.02 done=false error=null
+[STEP] step=5 action=query_logs service=api timerange=10m reward=0.02 done=false error=null
+[STEP] step=6 action=check_runbook service=database reward=0.02 done=false error=null
+[STEP] step=7 action=check_deps service=api reward=0.01 done=false error=null
+[STEP] step=8 action=kill_query service=database query_id=runaway_analytics reward=0.08 done=true error=null
+[END] success=false steps=8 score=0.052 rewards=0.07,0.13,0.04,0.02,0.02,0.02,0.01,0.08
+
+[START] task=memory-leak env=praxis model=softmax-grpo
+[STEP] step=1 action=query_logs service=worker timerange=10m reward=0.04 done=false error=null
+[STEP] step=2 action=check_config service=worker reward=0.04 done=false error=null
+[STEP] step=3 action=rollback_deploy service=worker reward=0.18 done=true error=null
+[END] success=false steps=3 score=0.085 rewards=0.04,0.04,0.18
+
+[START] task=single-service-alert env=praxis model=softmax-grpo
+[STEP] step=1 action=diagnose root_cause=bad_config reward=0.20 done=false error=null
+[STEP] step=2 action=check_config service=auth reward=0.10 done=false error=null
+[STEP] step=3 action=check_config service=auth reward=0.01 done=false error=null
+[STEP] step=4 action=check_runbook service=auth reward=0.05 done=false error=null
+[STEP] step=5 action=check_metrics service=auth metric=error_rate reward=0.05 done=false error=null
+[STEP] step=6 action=check_runbook service=auth reward=0.01 done=false error=null
+[STEP] step=7 action=restart_service service=auth reward=0.01 done=false error=null
+[STEP] step=8 action=check_config service=auth reward=0.01 done=false error=null
+[STEP] step=9 action=diagnose root_cause=bad_config reward=0.20 done=false error=null
+[STEP] step=10 action=check_config service=auth reward=0.01 done=false error=null
+[END] success=false steps=10 score=0.065 rewards=0.20,0.10,0.01,0.05,0.05,0.01,0.01,0.01,0.20,0.01
+
+[START] task=ambiguous-incident env=praxis model=softmax-grpo
+[STEP] step=1 action=check_config service=dns-resolver reward=0.04 done=false error=null
+[STEP] step=2 action=check_deps service=app reward=0.01 done=false error=null
+[STEP] step=3 action=check_metrics service=app metric=error_rate reward=0.01 done=false error=null
+[STEP] step=4 action=check_deps service=app reward=0.01 done=false error=null
+[STEP] step=5 action=diagnose root_cause=dns_misconfiguration reward=0.01 done=false error=null
+[STEP] step=6 action=check_metrics service=app metric=error_rate reward=0.01 done=false error=null
+[STEP] step=7 action=query_logs service=dns-resolver timerange=10m reward=0.09 done=false error=null
+[STEP] step=8 action=check_config service=dns-resolver reward=0.01 done=false error=null
+[STEP] step=9 action=escalate reason=cross_service_incident reward=0.01 done=true error=null
+[END] success=false steps=9 score=0.023 rewards=0.04,0.01,0.01,0.01,0.01,0.01,0.09,0.01,0.01
+
+[START] task=cascading-failure env=praxis model=softmax-grpo
+[STEP] step=1 action=check_config service=database reward=0.02 done=false error=null
+[STEP] step=2 action=check_deps service=api reward=0.02 done=false error=null
+[STEP] step=3 action=query_logs service=analytics timerange=10m reward=0.04 done=false error=null
+[STEP] step=4 action=kill_query service=database query_id=runaway_analytics reward=0.08 done=false error=null
+[STEP] step=5 action=check_config service=database reward=0.01 done=false error=null
+[STEP] step=6 action=escalate reason=db_overload reward=0.08 done=true error=null
+[END] success=false steps=6 score=0.045 rewards=0.02,0.02,0.04,0.08,0.01,0.08
+
+[START] task=memory-leak env=praxis model=softmax-grpo
+[STEP] step=1 action=rollback_deploy service=worker reward=0.18 done=true error=null
+[END] success=true steps=1 score=0.185 rewards=0.18
+
+[START] task=single-service-alert env=praxis model=softmax-grpo
+[STEP] step=1 action=query_logs service=auth timerange=5m reward=0.08 done=false error=null
+[STEP] step=2 action=check_metrics service=auth metric=error_rate reward=0.05 done=false error=null
+[STEP] step=3 action=check_config service=auth reward=0.10 done=false error=null
+[STEP] step=4 action=diagnose root_cause=db_connection_failure reward=0.01 done=false error=null
+[STEP] step=5 action=diagnose root_cause=bad_config reward=0.20 done=false error=null
+[STEP] step=6 action=restart_service service=auth reward=0.01 done=false error=null
+[STEP] step=7 action=check_runbook service=auth reward=0.05 done=false error=null
+[STEP] step=8 action=diagnose root_cause=bad_config reward=0.20 done=false error=null
+[STEP] step=9 action=check_config service=auth reward=0.01 done=false error=null
+[STEP] step=10 action=check_config service=auth reward=0.01 done=false error=null
+[END] success=false steps=10 score=0.072 rewards=0.08,0.05,0.10,0.01,0.20,0.01,0.05,0.20,0.01,0.01
+
+[START] task=ambiguous-incident env=praxis model=softmax-grpo
+[STEP] step=1 action=check_runbook service=dns-resolver reward=0.03 done=false error=null
+[STEP] step=2 action=check_metrics service=app metric=error_rate reward=0.01 done=false error=null
+[STEP] step=3 action=check_metrics service=app metric=error_rate reward=0.01 done=false error=null
+[STEP] step=4 action=check_runbook service=dns-resolver reward=0.01 done=false error=null
+[STEP] step=5 action=check_deps service=app reward=0.01 done=false error=null
+[STEP] step=6 action=check_config service=dns-resolver reward=0.04 done=false error=null
+[STEP] step=7 action=check_deps service=app reward=0.01 done=false error=null
+[STEP] step=8 action=query_logs service=app timerange=10m reward=0.01 done=false error=null
+[STEP] step=9 action=diagnose root_cause=dns_misconfiguration reward=0.01 done=false error=null
+[STEP] step=10 action=check_metrics service=app metric=error_rate reward=0.01 done=false error=null
+[END] success=false steps=10 score=0.015 rewards=0.03,0.01,0.01,0.01,0.01,0.04,0.01,0.01,0.01,0.01
+
+[START] task=cascading-failure env=praxis model=softmax-grpo
+[STEP] step=1 action=scale_resource service=database resource=connection_pool reward=0.07 done=false error=null
+[STEP] step=2 action=scale_resource service=database resource=connection_pool reward=0.07 done=false error=null
+[STEP] step=3 action=diagnose root_cause=db_connection_pool_exhausted reward=0.13 done=false error=null
+[STEP] step=4 action=check_runbook service=database reward=0.02 done=false error=null
+[STEP] step=5 action=query_logs service=analytics timerange=10m reward=0.04 done=false error=null
+[STEP] step=6 action=diagnose root_cause=db_connection_pool_exhausted reward=0.13 done=false error=null
+[STEP] step=7 action=check_metrics service=database metric=connections reward=0.07 done=false error=null
+[STEP] step=8 action=query_logs service=database timerange=15m reward=0.04 done=false error=null
+[STEP] step=9 action=query_logs service=database timerange=15m reward=0.01 done=false error=null
+[STEP] step=10 action=escalate reason=db_overload reward=0.08 done=true error=null
+[END] success=false steps=10 score=0.070 rewards=0.07,0.07,0.13,0.02,0.04,0.13,0.07,0.04,0.01,0.08
+
+[START] task=memory-leak env=praxis model=softmax-grpo
+[STEP] step=1 action=diagnose root_cause=memory_leak reward=0.14 done=false error=null
+[STEP] step=2 action=scale_resource service=worker resource=memory reward=0.18 done=true error=null
+[END] success=true steps=2 score=0.160 rewards=0.14,0.18
