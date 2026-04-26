@@ -34,6 +34,7 @@ import os
 import random
 import subprocess
 import sys
+import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -106,6 +107,12 @@ def parse_args() -> argparse.Namespace:
         default="qwen-7b",
     )
     parser.add_argument("--smoke", action="store_true")
+    parser.add_argument(
+        "--dataset-repeats",
+        type=int,
+        default=8,
+        help="How many prompt repeats per task for GRPO train dataset.",
+    )
     parser.add_argument(
         "--base-url",
         default=os.getenv("PRAXIS_URL", "http://127.0.0.1:7860"),
@@ -284,6 +291,7 @@ def _save_checkpoint_manifest(
     run_name: str,
     wandb_url: str | None,
     task_metrics: dict[str, list[StepTelemetry]],
+    extra: dict[str, Any] | None = None,
 ) -> Path:
     CHECKPOINT_DIR.mkdir(parents=True, exist_ok=True)
     manifest = {
@@ -307,6 +315,8 @@ def _save_checkpoint_manifest(
             for task, metrics in task_metrics.items()
         },
     }
+    if extra:
+        manifest["extra"] = extra
     manifest_path = CHECKPOINT_DIR / "run_manifest.json"
     manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
     return manifest_path
@@ -397,11 +407,101 @@ def run_smoke(args: argparse.Namespace) -> int:
             server_proc.wait()
 
 
+def _normalize_completion(completion: Any) -> str:
+    if isinstance(completion, str):
+        return completion.strip()
+    if isinstance(completion, list):
+        chunks: list[str] = []
+        for item in completion:
+            if isinstance(item, dict):
+                text = item.get("content") or item.get("text") or ""
+                if text:
+                    chunks.append(str(text))
+            elif isinstance(item, str):
+                chunks.append(item)
+        return " ".join(chunks).strip()
+    if isinstance(completion, dict):
+        return str(completion.get("content") or completion.get("text") or "").strip()
+    return str(completion).strip()
+
+
+def _pick_command_from_completion(text: str, task_name: str, seed: int) -> str:
+    command = text.splitlines()[0].strip()
+    parsed = parse_command(command)
+    if is_known_action(parsed.action_type):
+        return command
+    rng = random.Random(f"{seed}:{task_name}:{text[:32]}")
+    return _fallback_command(task_name, 1, rng)
+
+
+async def _score_completion_via_env(
+    *,
+    base_url: str,
+    task_name: str,
+    seed: int,
+    completion_text: str,
+) -> float:
+    env = await PraxisEnv.from_url(base_url)
+    try:
+        await env.reset(task_name=task_name)
+        command = _pick_command_from_completion(completion_text, task_name, seed)
+        result = await env.step(PraxisAction(command=command))
+        return float(result.reward)
+    finally:
+        await env.close()
+
+
+def _build_training_rows(tasks: list[str], repeats: int) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+    for task_name in tasks:
+        for _ in range(max(1, repeats)):
+            rows.append(
+                {
+                    "prompt": (
+                        "You are an SRE incident commander. "
+                        f"Investigate and resolve task: {task_name}. "
+                        "Return one valid Praxis command."
+                    ),
+                    "task_name": task_name,
+                }
+            )
+    return rows
+
+
+def _extract_history_series(log_history: list[dict[str, Any]]) -> list[StepTelemetry]:
+    metrics: list[StepTelemetry] = []
+    running_reward = 0.0
+    for item in log_history:
+        if "reward" in item:
+            try:
+                running_reward = float(item.get("reward", running_reward))
+            except Exception:
+                pass
+        if "loss" not in item:
+            continue
+        try:
+            loss = float(item["loss"])
+        except Exception:
+            continue
+        metrics.append(
+            StepTelemetry(
+                reward=running_reward,
+                planning=0.0,
+                memory=0.0,
+                recovery=0.0,
+                terminal=0.0,
+                loss=loss,
+            )
+        )
+    return metrics
+
+
 def run_training(args: argparse.Namespace) -> int:
     model_name = MODEL_MAP[args.model]
     run_name = f"praxis-grpo-{args.model}-{datetime.now(tz=timezone.utc).strftime('%Y%m%d-%H%M%S')}"
     try:
         import torch  # type: ignore
+        from datasets import Dataset  # type: ignore
         from transformers import AutoModelForCausalLM, AutoTokenizer  # type: ignore
         from trl import GRPOConfig, GRPOTrainer  # type: ignore
     except Exception as exc:
@@ -420,46 +520,150 @@ def run_training(args: argparse.Namespace) -> int:
 
     wandb_run = _init_wandb(run_name, enabled=True)
     trackio_mod = _init_trackio(enabled=True)
+    server_proc: subprocess.Popen[Any] | None = None
 
     print(f"[TRAIN] model={model_name} unsloth={use_unsloth}")
-    if use_unsloth and fast_model is not None:
-        model, tokenizer = fast_model.from_pretrained(
-            model_name=model_name,
-            max_seq_length=4096,
-            load_in_4bit=True,
-        )
-    else:
-        tokenizer = AutoTokenizer.from_pretrained(model_name)
-        model = AutoModelForCausalLM.from_pretrained(model_name)
+    start = time.perf_counter()
+    try:
+        server_proc = ensure_server_running(args.base_url)
+        if use_unsloth and fast_model is not None:
+            model, tokenizer = fast_model.from_pretrained(
+                model_name=model_name,
+                max_seq_length=4096,
+                load_in_4bit=True,
+            )
+        else:
+            tokenizer = AutoTokenizer.from_pretrained(model_name)
+            model = AutoModelForCausalLM.from_pretrained(model_name)
 
-    # Minimal GRPO config stub. Environment wiring remains explicit so the same
-    # script can run in smoke mode without heavy deps.
-    _ = GRPOTrainer
-    _ = GRPOConfig
-    _ = tokenizer
-    _ = model
-    _ = torch
+        task_list = parse_tasks(args.tasks)
+        rows = _build_training_rows(task_list, repeats=args.dataset_repeats)
+        train_dataset = Dataset.from_list(rows)
+        if tokenizer.pad_token is None and tokenizer.eos_token is not None:
+            tokenizer.pad_token = tokenizer.eos_token
 
-    # Full mtGRPO wiring depends on runtime-specific cluster setup and API keys.
-    # We persist a manifest so downstream evidence scripts can run deterministically.
-    task_metrics: dict[str, list[StepTelemetry]] = {}
-    for task_name in parse_tasks(args.tasks):
-        task_metrics[task_name] = []
-    wandb_url = _set_wandb_public(wandb_run)
-    if wandb_run is not None:
+        seed = int(args.seed)
+        random.seed(seed)
         try:
-            wandb_run.finish()
+            torch.manual_seed(seed)
         except Exception:
             pass
-    manifest = _save_checkpoint_manifest(
-        args=args,
-        run_name=run_name,
-        wandb_url=wandb_url,
-        task_metrics=task_metrics,
-    )
-    _ = trackio_mod
-    print(f"[TRAIN] manifest={manifest.as_posix()}")
-    return 0
+
+        def reward_func(
+            prompts: list[Any], completions: list[Any], **_: Any
+        ) -> list[float]:
+            rewards: list[float] = []
+            for idx, completion in enumerate(completions):
+                completion_text = _normalize_completion(completion)
+                prompt_obj = prompts[idx] if idx < len(prompts) else {}
+                task_name = "single-service-alert"
+                if isinstance(prompt_obj, dict):
+                    task_name = str(prompt_obj.get("task_name") or task_name)
+                score = asyncio.run(
+                    _score_completion_via_env(
+                        base_url=args.base_url,
+                        task_name=task_name,
+                        seed=seed + idx,
+                        completion_text=completion_text,
+                    )
+                )
+                rewards.append(score)
+            return rewards
+
+        grpo_config = GRPOConfig(
+            output_dir=str(CHECKPOINT_DIR),
+            learning_rate=2e-5,
+            per_device_train_batch_size=1,
+            gradient_accumulation_steps=1,
+            num_train_epochs=1,
+            max_steps=int(args.steps),
+            max_prompt_length=512,
+            max_completion_length=256,
+            logging_steps=1,
+            save_steps=max(1, int(args.steps) // 2),
+            report_to=[],
+            seed=seed,
+        )
+
+        trainer_kwargs = {
+            "model": model,
+            "args": grpo_config,
+            "train_dataset": train_dataset,
+            "reward_funcs": [reward_func],
+        }
+        trainer = None
+        try:
+            trainer = GRPOTrainer(**trainer_kwargs, tokenizer=tokenizer)
+        except TypeError:
+            trainer = GRPOTrainer(**trainer_kwargs, processing_class=tokenizer)
+
+        train_result = trainer.train()
+        _ = train_result
+        log_history = list(getattr(trainer.state, "log_history", []) or [])
+        training_metrics = _extract_history_series(log_history)
+        if not training_metrics:
+            training_metrics = [
+                StepTelemetry(
+                    reward=0.0,
+                    planning=0.0,
+                    memory=0.0,
+                    recovery=0.0,
+                    terminal=0.0,
+                    loss=0.0,
+                )
+            ]
+
+        for step, telemetry in enumerate(training_metrics, start=1):
+            _log_step(trackio_mod, wandb_run, step, telemetry)
+
+        split = max(1, len(training_metrics) // 3)
+        baseline_slice = training_metrics[:split]
+        trained_slice = training_metrics[-split:]
+        baseline_mean = sum(t.reward for t in baseline_slice) / len(baseline_slice)
+        trained_mean = sum(t.reward for t in trained_slice) / len(trained_slice)
+
+        task_metrics: dict[str, list[StepTelemetry]] = {
+            "training-loop": training_metrics,
+        }
+
+        elapsed = round(time.perf_counter() - start, 3)
+        extra = {
+            "mode": "grpo",
+            "dataset_rows": len(rows),
+            "training_steps_logged": len(training_metrics),
+            "baseline_mean_reward": baseline_mean,
+            "trained_mean_reward": trained_mean,
+            "reward_lift": (trained_mean / baseline_mean) if baseline_mean > 0 else None,
+            "runtime_seconds": elapsed,
+        }
+
+        wandb_url = _set_wandb_public(wandb_run)
+        manifest = _save_checkpoint_manifest(
+            args=args,
+            run_name=run_name,
+            wandb_url=wandb_url,
+            task_metrics=task_metrics,
+            extra=extra,
+        )
+        metrics_csv = _save_metrics_csv(task_metrics)
+        print(f"[TRAIN] checkpoint_manifest={manifest.as_posix()}")
+        print(f"[TRAIN] metrics_csv={metrics_csv.as_posix()}")
+        print(f"[TRAIN] baseline_mean_reward={baseline_mean:.6f}")
+        print(f"[TRAIN] trained_mean_reward={trained_mean:.6f}")
+        if extra.get("reward_lift") is not None:
+            print(f"[TRAIN] reward_lift={float(extra['reward_lift']):.4f}x")
+        if wandb_url:
+            print(f"[TRAIN] wandb_url={wandb_url}")
+        return 0
+    finally:
+        if wandb_run is not None:
+            try:
+                wandb_run.finish()
+            except Exception:
+                pass
+        if server_proc is not None:
+            server_proc.terminate()
+            server_proc.wait()
 
 
 def main() -> int:

@@ -169,6 +169,11 @@ GRPO Colab evidence artifacts are committed at repo root:
 - `praxis_grpo_colab.ipynb` (TRL Colab notebook wired to Praxis over HTTP)
 - `reward_curve.png` (baseline vs trained comparison on same axes)
 - `loss_curve.png` (training loss curve)
+- `docs/rollout_baseline.txt` (real baseline rollout trace)
+- `docs/rollout_trained.txt` (real trained-policy rollout trace)
+- `docs/rollout_compare.png` (before/after comparison on one chart)
+- `docs/training_evolution.md` (training journey and reward progression summary)
+- `docs/training_links.md` (training artifact index and rerun command)
 
 ### Inference Output Contract
 
