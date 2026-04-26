@@ -58,7 +58,7 @@ WandB:   https://wandb.ai/<team>/praxis-mission-ops/runs/<id>
 | `docs/figures/rollout_compare.png` | Per-turn reward chart, both lines on same axes.                                       |
 | `docs/demo.gif`            | 8-second loop of the cutoff moment (baseline panics, trained calls `recall_memory`).  |
 
-This is what opens the README, the slide deck, and the live demo.
+**Status (shipped, 2026-04-26):** all four files exist under `docs/`; `docs/demo.gif` (≤5 MB) is the motion asset for Issue #33 / #44, and the README opens with the static compare chart plus the GIF. Re-record if the UI copy changes.
 
 ---
 

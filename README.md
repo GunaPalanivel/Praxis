@@ -21,17 +21,19 @@ pinned: false
 - Space writeup: [Blog.MD on the Space repo](https://huggingface.co/spaces/gp5901/praxis/blob/main/Blog.MD) (mirrored in GitHub as [Blog.MD](https://github.com/GunaPalanivel/Praxis/blob/main/Blog.MD))
 - Colab: [open `praxis_grpo_colab.ipynb` in Colab](https://colab.research.google.com/github/GunaPalanivel/Praxis/blob/main/praxis_grpo_colab.ipynb) (canonical: `https://colab.research.google.com/github/GunaPalanivel/Praxis/blob/main/praxis_grpo_colab.ipynb`)
 - Source: [https://github.com/GunaPalanivel/Praxis](https://github.com/GunaPalanivel/Praxis)
-- YouTube: not published for this refresh (add here when you have a public link)
-- WandB / Trackio: not configured in the default local run (see [docs/training_links.md](docs/training_links.md))
-- **Colab run exports (repo root):** [`colabresults/`](colabresults/README.md) — latest curves, `jsonl`/`csv` logs, rollout traces, and `eval_checkpoints.json` in one place for quick review.
+- YouTube (demo screencast; replace with your public link): [https://www.youtube.com/watch?v=REPLACE_WITH_PUBLIC_ID](https://www.youtube.com/watch?v=REPLACE_WITH_PUBLIC_ID)
+- WandB / Trackio: public run URL (after `wandb` login) — also duplicated in this README once available; if missing, see `wandb_url` in [`checkpoints/praxis-grpo/run_manifest.json`](checkpoints/praxis-grpo/run_manifest.json) after a successful logged run, or [docs/training_links.md](docs/training_links.md)
+- **Colab run exports (repo root):** [`colabresults/`](colabresults/README.md) — latest curves, `jsonl`/`csv` logs, rollout traces, and [`colabresults/eval_checkpoints.json`](colabresults/eval_checkpoints.json) in one place for quick review.
 
 **TRL training (`train_praxis_grpo.py`, non-smoke):** the GRPO `reward_func` runs a **trajectory** per completion: one `reset` per row, then one `/step` per non-empty line of the model output (in order, capped by `--max-turns`), or a single step when the model emits one line. The scalar label prefers the server’s ADR-20 `final_score` on `/state` when the episode is terminal, otherwise the mean of per-step rewards. Use an external Praxis process in production; local auto-start writes uvicorn stderr to a temp file (see [docs/deployment.md](docs/deployment.md)).
 
 ### Plots (same files the notebook and scripts point at)
 
-![Before and after rollout compare](docs/figures/rollout_compare.png)
+| Rollout compare (static) | Before/after motion (8s loop) |
+| --- | --- |
+| ![Before and after rollout compare](docs/figures/rollout_compare.png) | ![docs/demo.gif](docs/demo.gif) |
 
-Caption: baseline vs trained mean episode reward on the same chart axes. Full log is in [docs/training_evolution.md](docs/training_evolution.md).
+Caption: baseline vs trained on one chart; GIF highlights the same comparison. Full log is in [docs/training_evolution.md](docs/training_evolution.md).
 
 ![Training reward and loss from the local metrics CSV](docs/figures/reward_curve.png)
 
@@ -173,21 +175,31 @@ flowchart LR
 
 ## Baseline Scores
 
-Model: `Qwen/Qwen2.5-72B-Instruct`  
-Endpoint: `https://gp5901-praxis.hf.space`
+### Inference snapshot (current code tree, 2026-04-26)
 
-Latest observed live run snapshot (2026-04-10):
+`python inference.py --model random --runs 1` per task (local `PRAXIS_URL` server, seed 2026). Stochastic: re-run to refresh; live HF Space scores can differ when using `--model router` with a hosted model.
 
-| Task                 | Difficulty | Steps | Score |
-| -------------------- | ---------- | ----- | ----- |
+| Task                 | Difficulty | Mean score (one run) |
+| -------------------- | ---------- | --------------------: |
+| single-service-alert | Easy       | 0.122 |
+| ambiguous-incident | Medium     | 0.010 |
+| cascading-failure    | Hard       | 0.441 |
+| memory-leak          | Hard       | 0.010 |
+| **Mean (4 tasks)**   | —          | 0.146 |
+
+### Live Space reference (Qwen2.5-72B, earlier pull)
+
+| Task                 | Difficulty | Steps | Score (2026-04-10) |
+| -------------------- | ---------- | ----- | -----------------: |
 | single-service-alert | Easy       | 5     | 0.092 |
 | cascading-failure    | Hard       | 20    | 0.041 |
 | ambiguous-incident   | Medium     | 25    | 0.020 |
 | memory-leak          | Hard       | 5     | 0.095 |
 | Mean task score      | -          | -     | 0.062 |
 
-Scores can vary between runs based on model behavior and inference endpoint conditions.
-Run `python inference.py` to generate a fresh score snapshot.
+### GRPO smoke run vs baseline (explanation for merge review)
+
+On the early April 26 smoke GRPO evidence (before updated `lr=1e-4` and longer runs), **only `single-service-alert` clearly improved**; three tasks regressed, which matches short CPU smoke training and aggressive settings. A **200+ episode GPU run** with `train_praxis_grpo.py --learning-rate 1e-4` and the current reward (`efficiency_bonus_max=0.05` floor in policy) is the intended way to re-check all four. See [`colabresults/eval_checkpoints.json`](colabresults/eval_checkpoints.json) for stored checkpoint means and [docs/training_evolution.md](docs/training_evolution.md) for the narrative.
 
 ## Training Evidence Artifacts
 
@@ -199,6 +211,8 @@ Plots and judge-facing figures are under **[`docs/figures/`](docs/figures/)** (s
 - `docs/rollout_baseline.txt` (real baseline rollout trace)
 - `docs/rollout_trained.txt` (real trained-policy rollout trace)
 - `docs/figures/rollout_compare.png` (before/after comparison on one chart)
+- `docs/demo.gif` (8s loop, same story as the chart)
+- [`colabresults/eval_checkpoints.json`](colabresults/eval_checkpoints.json) (baseline vs trained + config metadata; regenerate after GPU runs)
 - `docs/training_evolution.md` (training journey and reward progression summary)
 - `docs/training_links.md` (training artifact index and rerun command)
 

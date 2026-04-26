@@ -30,7 +30,8 @@ multi-step loops for metrics.
 
 Examples:
   python train_praxis_grpo.py --smoke --steps 5 --tasks single-service-alert
-  python train_praxis_grpo.py --steps 50 --tasks cascading-platform-failure,single-service-alert --model qwen-7b
+  python train_praxis_grpo.py --steps 200 --learning-rate 1e-4 --tasks cascading-platform-failure,single-service-alert --model qwen-7b
+  python train_praxis_grpo.py --smoke --no-wandb
 """
 
 from __future__ import annotations
@@ -139,6 +140,17 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--base-url",
         default=os.getenv("PRAXIS_URL", "http://127.0.0.1:7860"),
+    )
+    parser.add_argument(
+        "--learning-rate",
+        type=float,
+        default=1e-4,
+        help="TRL GRPOConfig learning rate (default 1e-4; production merge default).",
+    )
+    parser.add_argument(
+        "--no-wandb",
+        action="store_true",
+        help="Do not init WandB/Trackio (for offline or CI).",
     )
     return parser.parse_args()
 
@@ -300,6 +312,7 @@ def _save_checkpoint_manifest(
         "created_at": datetime.now(tz=timezone.utc).isoformat(),
         "run_name": run_name,
         "model": MODEL_MAP[args.model],
+        "learning_rate": float(getattr(args, "learning_rate", 1e-4)),
         "steps": args.steps,
         "smoke_episodes": int(getattr(args, "smoke_episodes", 1) or 1),
         "tasks": parse_tasks(args.tasks),
@@ -364,8 +377,9 @@ def run_smoke(args: argparse.Namespace) -> int:
         print("[SMOKE] --smoke-episodes must be >= 1", flush=True)
         return 2
     run_name = f"praxis-smoke-{datetime.now(tz=timezone.utc).strftime('%Y%m%d-%H%M%S')}"
-    wandb_run = _init_wandb(run_name, enabled=True)
-    trackio_mod = _init_trackio(enabled=True)
+    _log_remote = not bool(getattr(args, "no_wandb", False))
+    wandb_run = _init_wandb(run_name, enabled=_log_remote)
+    trackio_mod = _init_trackio(enabled=_log_remote)
 
     server_proc, _log_path = ensure_local_uvicorn(
         args.base_url,
@@ -581,11 +595,13 @@ def run_training(args: argparse.Namespace) -> int:
     except Exception:
         use_unsloth = False
 
-    wandb_run = _init_wandb(run_name, enabled=True)
-    trackio_mod = _init_trackio(enabled=True)
+    _log_remote = not bool(getattr(args, "no_wandb", False))
+    wandb_run = _init_wandb(run_name, enabled=_log_remote)
+    trackio_mod = _init_trackio(enabled=_log_remote)
     server_proc: subprocess.Popen[Any] | None = None
 
-    print(f"[TRAIN] model={model_name} unsloth={use_unsloth}")
+    lr = float(getattr(args, "learning_rate", 1e-4))
+    print(f"[TRAIN] model={model_name} unsloth={use_unsloth} learning_rate={lr}")
     start = time.perf_counter()
     try:
         server_proc, _ = ensure_local_uvicorn(
@@ -642,7 +658,7 @@ def run_training(args: argparse.Namespace) -> int:
 
         grpo_config = GRPOConfig(
             output_dir=str(CHECKPOINT_DIR),
-            learning_rate=2e-5,
+            learning_rate=lr,
             per_device_train_batch_size=1,
             gradient_accumulation_steps=1,
             num_train_epochs=1,
