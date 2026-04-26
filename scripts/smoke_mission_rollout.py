@@ -16,13 +16,13 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from urllib.parse import urlparse
 
 import urllib.request
 
 
-def _request(method: str, url: str, *, body: dict | None = None,
-             headers: dict | None = None) -> dict:
+def _request(
+    method: str, url: str, *, body: dict | None = None, headers: dict | None = None
+) -> dict:
     data = None if body is None else json.dumps(body).encode("utf-8")
     h = {"Content-Type": "application/json"}
     if headers:
@@ -56,7 +56,7 @@ def main() -> int:
     assert "[INTAKE: most-recent on-call note for the impacted service]" in intake, (
         "intake observation must surface a vendored on-call note"
     )
-    print(f"[reset]  intake on-call note OK")
+    print("[reset]  intake on-call note OK")
 
     # 2. query_logs database -> expect vendored log excerpt
     out = _request(

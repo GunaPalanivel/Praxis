@@ -19,6 +19,10 @@ Designed for two execution modes:
 2) full training (GPU): runs TRL GRPO with optional Unsloth acceleration.
    Falls back to plain TRL path when Unsloth is unavailable.
 
+TRL note: the default reward_func scores each completion with a single env step
+(the first parsed command after reset), not a full multi-step rollout. Smoke mode
+and the Colab / scripts/generate_grpo_evidence.py loops use longer trajectories.
+
 Examples:
   python train_praxis_grpo.py --smoke --steps 5 --tasks single-service-alert
   python train_praxis_grpo.py --steps 50 --tasks cascading-platform-failure,single-service-alert --model qwen-7b
@@ -28,6 +32,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import concurrent.futures
 import csv
 import json
 import os
@@ -35,13 +40,16 @@ import random
 import subprocess
 import sys
 import time
+from collections.abc import Coroutine
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeVar
 
 from praxis_env import PraxisAction, PraxisEnv
 from server.command_parser import is_known_action, parse_command
+
+_T = TypeVar("_T")
 
 
 MODEL_MAP = {
@@ -129,6 +137,20 @@ def parse_args() -> argparse.Namespace:
 def parse_tasks(raw: str) -> list[str]:
     tasks = [part.strip() for part in raw.split(",") if part.strip()]
     return tasks or list(DEFAULT_TASKS)
+
+
+def _run_async_blocking(coro: Coroutine[Any, Any, _T]) -> _T:
+    """Run *coro* to completion; safe if a caller (e.g. TRL) already has a running loop."""
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return asyncio.run(coro)
+
+    def _runner() -> _T:
+        return asyncio.run(coro)
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+        return pool.submit(_runner).result()
 
 
 def ensure_server_running(url: str) -> subprocess.Popen[Any] | None:
@@ -575,7 +597,7 @@ def run_training(args: argparse.Namespace) -> int:
                 task_name = "single-service-alert"
                 if isinstance(prompt_obj, dict):
                     task_name = str(prompt_obj.get("task_name") or task_name)
-                score = asyncio.run(
+                score = _run_async_blocking(
                     _score_completion_via_env(
                         base_url=args.base_url,
                         task_name=task_name,
@@ -649,7 +671,9 @@ def run_training(args: argparse.Namespace) -> int:
             "training_steps_logged": len(training_metrics),
             "baseline_mean_reward": baseline_mean,
             "trained_mean_reward": trained_mean,
-            "reward_lift": (trained_mean / baseline_mean) if baseline_mean > 0 else None,
+            "reward_lift": (trained_mean / baseline_mean)
+            if baseline_mean > 0
+            else None,
             "runtime_seconds": elapsed,
         }
 

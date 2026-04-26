@@ -20,6 +20,8 @@ The reward breakdown is what you train on. We split it into four named parts in 
 
 For example: a policy that starts with `check_metrics` before `check_logs` on a memory-leak scenario scores higher on planning than one that reaches the same finding in reverse order. Same terminal outcome, different reasoning path, different reward. Scoring is wired in [server/reward.py](https://github.com/GunaPalanivel/Praxis/blob/main/server/reward.py).
 
+**Two training surfaces, one environment.** In [`train_praxis_grpo.py`](https://github.com/GunaPalanivel/Praxis/blob/main/train_praxis_grpo.py), the TRL `GRPOTrainer` hook scores each completion with a **single** `POST /step` after `reset` (first parsed line of the model output). Longer trajectories show up in `--smoke` runs, in the Colab notebook’s discrete action loop, and in [`scripts/generate_grpo_evidence.py`](https://github.com/GunaPalanivel/Praxis/blob/main/scripts/generate_grpo_evidence.py). The Colab notebook imports TRL’s `GRPOConfig` for API parity; the cells train a small softmax policy over a fixed action pool against the live Space, not `GRPOTrainer` on a loaded LM.
+
 ---
 
 ## What We Built, and in What Order

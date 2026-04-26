@@ -2,6 +2,7 @@
 
 Run date: 2026-04-26
 
+- Plotting / evidence scripts (`scripts/build_production_evidence.py`, `scripts/plot_curves.py`, `scripts/generate_grpo_evidence.py`) need the **`evidence`** optional extra. With uv: `uv sync --all-extras` (includes `evidence`) or `uv sync --extra evidence`.
 - Trackio: not configured in this local environment (no project credentials available).
 - WandB: not configured in this local environment (no API key available).
 - Local run manifest: `checkpoints/praxis-grpo/run_manifest.json`

@@ -38,7 +38,9 @@ def _load_training_metrics(csv_path: Path) -> list[dict[str, float]]:
     return rows
 
 
-def _save_rollout_compare(baseline_rewards: list[float], trained_rewards: list[float]) -> Path:
+def _save_rollout_compare(
+    baseline_rewards: list[float], trained_rewards: list[float]
+) -> Path:
     max_len = max(len(baseline_rewards), len(trained_rewards))
     if max_len == 0:
         raise RuntimeError("Cannot plot rollout comparison without rewards.")
@@ -50,9 +52,9 @@ def _save_rollout_compare(baseline_rewards: list[float], trained_rewards: list[f
     plt.figure(figsize=(10, 5))
     plt.plot(x, baseline, color="red", linewidth=2, label="Untrained Baseline")
     plt.plot(x, trained, color="green", linewidth=2, label="Trained Agent")
-    plt.xlabel("Training Step / Episode")
-    plt.ylabel("Mean Episode Reward")
-    plt.title("Praxis Rollout Comparison: Baseline vs Trained")
+    plt.xlabel("Inference step index (from rollout logs)")
+    plt.ylabel("Per-step reward")
+    plt.title("Praxis Rollout Comparison: Baseline vs Trained (inference logs)")
     plt.legend()
     plt.grid(True, alpha=0.3)
     plt.tight_layout()
@@ -124,7 +126,9 @@ def main() -> None:
     if not baseline_log.exists() or not trained_log.exists():
         raise FileNotFoundError("Missing rollout logs in docs/.")
     if not metrics_csv.exists() or not manifest_path.exists():
-        raise FileNotFoundError("Missing checkpoint artifacts in checkpoints/praxis-grpo/.")
+        raise FileNotFoundError(
+            "Missing checkpoint artifacts in checkpoints/praxis-grpo/."
+        )
 
     baseline_rewards = _extract_rewards(baseline_log)
     trained_rewards = _extract_rewards(trained_log)

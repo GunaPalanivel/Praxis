@@ -24,6 +24,8 @@ pinned: false
 - YouTube: not published for this refresh (add here when you have a public link)
 - WandB / Trackio: not configured in the default local run (see [docs/training_links.md](docs/training_links.md))
 
+**TRL training (`train_praxis_grpo.py`, non-smoke):** the default GRPO reward scores each model completion with **one** environment step (first command after `reset`). Multi-step rollouts appear in `--smoke` metrics, the Colab discrete policy loop, and `scripts/generate_grpo_evidence.py`—not in that default LLM reward unless you extend the callback.
+
 ### Plots (same files the notebook and scripts point at)
 
 ![Before and after rollout compare](docs/rollout_compare.png)
