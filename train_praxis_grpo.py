@@ -44,6 +44,7 @@ import asyncio
 import concurrent.futures
 import csv
 import json
+import math
 import os
 import random
 import subprocess
@@ -700,11 +701,21 @@ def run_training(args: argparse.Namespace) -> int:
             return rewards
 
         hub_model_id = os.getenv("HF_HUB_MODEL_ID", "").strip()
+        num_gen = int(args.num_generations)
+        per_device_train_batch_size = 1
+        _ws = os.environ.get("WORLD_SIZE", "").strip()
+        num_processes = max(1, int(_ws)) if _ws else 1
+        global_micro = per_device_train_batch_size * num_processes
+        # TRL GRPOConfig requires ``generation_batch_size % num_generations == 0``; the
+        # default derives batch 1 from micro-batch * steps_per_generation, which breaks
+        # when ``num_generations`` > 1 (Issue production GRPO: group_size=8).
+        generation_batch_size = (num_gen * global_micro) // math.gcd(num_gen, global_micro)
         grpo_config_kwargs: dict[str, Any] = dict(
             output_dir=str(CHECKPOINT_DIR),
             learning_rate=lr,
-            num_generations=int(args.num_generations),
-            per_device_train_batch_size=1,
+            num_generations=num_gen,
+            generation_batch_size=generation_batch_size,
+            per_device_train_batch_size=per_device_train_batch_size,
             gradient_accumulation_steps=1,
             num_train_epochs=1,
             max_steps=int(args.steps),
