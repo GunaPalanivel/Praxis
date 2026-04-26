@@ -4,7 +4,7 @@
 # dependencies = [
 #   "unsloth>=2024.10",
 #   "trl>=0.13.0",
-#   "transformers>=4.46.0",
+#   "transformers>=4.56.2,<5.0,!=4.57.0,!=4.57.4,!=4.57.5",
 #   "datasets>=2.20.0",
 #   "peft>=0.12.0",
 #   "mergekit>=0.0.4",
