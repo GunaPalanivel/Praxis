@@ -81,6 +81,6 @@ Each person owned a lane. Reviews were for catching mistakes, not for optics.
 - Live environment: [gp5901-praxis.hf.space](https://gp5901-praxis.hf.space)
 - HF Space: [huggingface.co/spaces/gp5901/praxis](https://huggingface.co/spaces/gp5901/praxis)
 - Source: [github.com/GunaPalanivel/Praxis](https://github.com/GunaPalanivel/Praxis)
-- Colab notebook: [open directly in Colab](https://colab.research.google.com/github/GunaPalanivel/Praxis/blob/main/praxis_grpo_colab.ipynb)
-- Rollout comparison: `docs/rollout_compare.png` on `feat/grpo-colab-evidence`
+- **Colab (train / evaluate against the live Space):** [Open in Colab](https://colab.research.google.com/github/GunaPalanivel/Praxis/blob/main/praxis_grpo_colab.ipynb) — `https://colab.research.google.com/github/GunaPalanivel/Praxis/blob/main/praxis_grpo_colab.ipynb`
+- Rollout comparison: `docs/figures/rollout_compare.png` on `feat/grpo-colab-evidence`
 - Training evolution: `docs/training_evolution.md`

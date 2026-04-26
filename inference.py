@@ -15,8 +15,9 @@ import os
 import random
 import re
 import statistics
-import subprocess
 from dataclasses import dataclass
+
+from praxis_env.server_bootstrap import close_server_process_stderr, ensure_local_uvicorn
 
 from openai import OpenAI
 
@@ -567,48 +568,6 @@ async def run_episode(
     )
 
 
-def ensure_server_running(url: str) -> subprocess.Popen | None:
-    import httpx
-    import time
-
-    try:
-        response = httpx.get(f"{url}/health", timeout=1.0)
-        if response.status_code == 200:
-            return None
-    except Exception:
-        pass
-
-    print(
-        "[INFO] Starting local environment server for standalone inference...",
-        flush=True,
-    )
-    import sys
-    import subprocess
-
-    port = url.split(":")[-1].replace("/", "")
-    cmd = [
-        sys.executable,
-        "-m",
-        "uvicorn",
-        "server.app:app",
-        "--port",
-        port,
-        "--host",
-        "127.0.0.1",
-    ]
-    proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-
-    start_time = time.time()
-    while time.time() - start_time < 15.0:
-        try:
-            if httpx.get(f"{url}/health", timeout=1.0).status_code == 200:
-                print("[INFO] Server is healthy.", flush=True)
-                break
-        except Exception:
-            time.sleep(0.5)
-    return proc
-
-
 async def main() -> None:
     args = parse_args()
     system_prompt_mode = "none" if args.no_system_prompt else args.system_prompt
@@ -622,7 +581,11 @@ async def main() -> None:
 
     server_proc = None
     try:
-        server_proc = ensure_server_running(PRAXIS_URL)
+        server_proc, _ = ensure_local_uvicorn(
+            PRAXIS_URL,
+            start_message="[INFO] Starting local environment server for standalone inference...",
+            healthy_message="[INFO] Server is healthy.",
+        )
         client = _build_client() if config.model_mode == "router" else None
 
         if args.task:
@@ -657,6 +620,7 @@ async def main() -> None:
         if server_proc:
             server_proc.terminate()
             server_proc.wait()
+            close_server_process_stderr(server_proc)
 
 
 if __name__ == "__main__":

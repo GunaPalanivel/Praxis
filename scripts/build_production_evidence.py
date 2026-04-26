@@ -11,6 +11,7 @@ import numpy as np
 
 ROOT = Path(__file__).resolve().parents[1]
 DOCS_DIR = ROOT / "docs"
+FIGURES_DIR = DOCS_DIR / "figures"
 CHECKPOINT_DIR = ROOT / "checkpoints" / "praxis-grpo"
 
 
@@ -58,7 +59,8 @@ def _save_rollout_compare(
     plt.legend()
     plt.grid(True, alpha=0.3)
     plt.tight_layout()
-    out_path = DOCS_DIR / "rollout_compare.png"
+    FIGURES_DIR.mkdir(parents=True, exist_ok=True)
+    out_path = FIGURES_DIR / "rollout_compare.png"
     plt.savefig(out_path, dpi=150)
     plt.close()
     return out_path
@@ -107,7 +109,7 @@ def _save_training_evolution_md(
         "",
         "- `docs/rollout_baseline.txt`",
         "- `docs/rollout_trained.txt`",
-        "- `docs/rollout_compare.png`",
+        "- `docs/figures/rollout_compare.png`",
         "- `checkpoints/praxis-grpo/run_manifest.json`",
         "- `checkpoints/praxis-grpo/metrics.csv`",
     ]

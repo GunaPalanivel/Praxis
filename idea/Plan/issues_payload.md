@@ -515,16 +515,16 @@ gh issue create --title "[P0] Training run + reward_curve + loss_curve + 4th bas
   --body @'
 ## Context
 
-Execute the run from #31 long enough to produce `docs/reward_curve.png`, `docs/loss_curve.png`, the 4th row in `docs/baseline_scores.md`, and `docs/training_links.md`. Target: ≥ 5× lift baseline → trained.
+Execute the run from #31 long enough to produce `docs/figures/reward_curve.png`, `docs/figures/loss_curve.png`, the 4th row in `docs/baseline_scores.md`, and `docs/training_links.md`. Target: ≥ 5× lift baseline → trained.
 
 ## What to do
 
 1. Run ≥ 50 mtGRPO steps with `cascading-platform-failure` + `single-service-alert` mix. Capture:
-   - `docs/reward_curve.png` (mean reward / step; trained vs random baseline on same axes).
-   - `docs/loss_curve.png` (loss / step).
+   - `docs/figures/reward_curve.png` (mean reward / step; trained vs random baseline on same axes).
+   - `docs/figures/loss_curve.png` (loss / step).
 2. Append row 4 (`Qwen-7B mtGRPO trained`) to `docs/baseline_scores.md`.
 3. Commit `docs/training_links.md` with Trackio + WandB public URLs.
-4. (Optional) `docs/rubric_attribution.png` bar chart of per-rubric contribution.
+4. (Optional) `docs/figures/rubric_attribution.png` bar chart of per-rubric contribution.
 
 ## Done when
 
@@ -569,14 +569,14 @@ ADR-16 / `FlawsToProduction/The Situation First.md` "Single Most Important Thing
 
 1. Run baseline Qwen-7B (no adapter) on `cascading-platform-failure` seed=2026; capture full text trajectory → `docs/rollout_baseline.txt`.
 2. Run trained adapter (from #32) on the same seed; capture → `docs/rollout_trained.txt`.
-3. Generate `docs/rollout_compare.png`: side-by-side per-turn cumulative reward chart from the two trajectories.
+3. Generate `docs/figures/rollout_compare.png`: side-by-side per-turn cumulative reward chart from the two trajectories.
 4. Generate `docs/demo.gif`: 8-second loop showing the cutoff banner + baseline vs trained reactions side-by-side. Use `asciinema` + `agg`, or screen-recorded mp4 → gif.
 5. Verify rollouts narratively (baseline never `create_plan`, trained calls `create_plan` + `save_finding` × 3 + `revise_plan`).
 
 ## Done when
 
 - [ ] All 4 assets committed under `docs/`.
-- [ ] `docs/rollout_compare.png` legible at 800px width.
+- [ ] `docs/figures/rollout_compare.png` legible at 800px width.
 - [ ] `docs/demo.gif` ≤ 5 MB.
 - [ ] README opens with both visuals (Issue #38).
 
@@ -792,7 +792,7 @@ gh issue create --title "[P0] README + mini-blog + slide deck + video" `
   --body @'
 ## Context
 
-Storytelling 30%. README opens with `docs/rollout_compare.png` + `docs/demo.gif` + the 5-sentence pitch. Mini-blog and / or video < 2 min are mandatory deliverables (S2). Slide deck ≤ 5 slides per `idea/Plan/Demo/Narrative.md` §3.
+Storytelling 30%. README opens with `docs/figures/rollout_compare.png` + `docs/demo.gif` + the 5-sentence pitch. Mini-blog and / or video < 2 min are mandatory deliverables (S2). Slide deck ≤ 5 slides per `idea/Plan/Demo/Narrative.md` §3.
 
 ## What to do
 
@@ -869,9 +869,9 @@ This tracker mirrors the 4 weighted hackathon axes (Environment Innovation 40%, 
 
 ### Axis B — Storytelling & Presentation (30%)
 
-- [ ] **#8.** Before/after rollout deliverables — `docs/rollout_baseline.txt`, `docs/rollout_trained.txt`, `docs/rollout_compare.png`, `docs/demo.gif` committed; same `mission_id` and seed; lift ≥ 4×. _(closes #33)_
+- [ ] **#8.** Before/after rollout deliverables — `docs/rollout_baseline.txt`, `docs/rollout_trained.txt`, `docs/figures/rollout_compare.png`, `docs/demo.gif` committed; same `mission_id` and seed; lift ≥ 4×. _(closes #33)_
 - [ ] **#9.** 5-sentence pitch lands in ≤ 50 seconds — rehearsed; speaker-notes-ready.
-- [ ] **#10.** README opens with the visual — first content block is `docs/rollout_compare.png` followed by `docs/demo.gif`, then the 5-sentence pitch. _(closes #38)_
+- [ ] **#10.** README opens with the visual — first content block is `docs/figures/rollout_compare.png` followed by `docs/demo.gif`, then the 5-sentence pitch. _(closes #38)_
 - [ ] **#11.** Mini-blog OR YouTube ≤ 2 min — public link in README + `Submission/ReleasePackage.md`.
 - [ ] **#12.** Slide deck (≤ 5 slides) — public Google Slides or PDF in repo.
 - [ ] **#13.** Q&A drill prepared — verbatim answers to the 5 likely judge questions in `idea/Plan/Demo/Narrative.md` §6.
@@ -879,7 +879,7 @@ This tracker mirrors the 4 weighted hackathon axes (Environment Innovation 40%, 
 ### Axis C — Reward Improvement (20%)
 
 - [ ] **#14.** 4-row score gap table — `docs/baseline_scores.md` rows: random / no-prompt / SRE-prompt / mtGRPO-trained; ≥ 4× lift baseline → trained. _(closes #30, #32)_
-- [ ] **#15.** Reward + loss curves — `docs/reward_curve.png` + `docs/loss_curve.png` from ≥ 50 mtGRPO steps; both inline in README. _(closes #32)_
+- [ ] **#15.** Reward + loss curves — `docs/figures/reward_curve.png` + `docs/figures/loss_curve.png` from ≥ 50 mtGRPO steps; both inline in README. _(closes #32)_
 - [ ] **#16.** Public Trackio + WandB run URLs — `docs/training_links.md` lists both; both public from a private window.
 - [ ] **#17.** Outcome × efficiency score formula — `compute_task_score = outcome × efficiency` with `outcome = 0` unless `_incident_resolved AND _root_cause_identified`; old avg-reward formula removed. _(closes #23, references ADR-20)_
 

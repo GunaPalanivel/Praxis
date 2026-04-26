@@ -9,7 +9,7 @@
 ## 1. Pre-show setup (5 minutes before)
 
 - Open `https://huggingface.co/spaces/<org>/praxis-env` in tab 1; verify `/health` is 200.
-- Open `docs/rollout_compare.png` in tab 2.
+- Open `docs/figures/rollout_compare.png` in tab 2.
 - Open `docs/demo.gif` (looping) in tab 3.
 - Open the WandB **public** run URL in tab 4 (back-up: Trackio if WandB is private-only).
 - Open `docs/baseline_scores.md` in tab 5 (4-row table: random / no-prompt / SRE-prompt / trained).
@@ -21,7 +21,7 @@
 
 | Time  | Action                                                            | Spoken                                                                                                         |
 | ----- | ----------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| 0:00  | Open with `docs/rollout_compare.png` on screen.                   | (silent — let the chart land for 2 seconds)                                                                    |
+| 0:00  | Open with `docs/figures/rollout_compare.png` on screen.                   | (silent — let the chart land for 2 seconds)                                                                    |
 | 0:03  | Point at the two lines.                                           | Sentence 1: "Real incidents take hours and span artifacts. Praxis MissionOps is the only environment where agents have to plan, remember, and recover across the full mission." |
 | 0:15  | Switch to `docs/demo.gif` (loop).                                 | Sentence 2: "Here is a baseline Qwen-7B agent. It wanders, queries logs after the cutoff, never plans — final score 0.04." |
 | 0:30  | Stop the GIF on the trained-agent recall_memory frame.            | Sentence 3: "Same model after one mtGRPO run. It plans, saves three findings, recovers from a deploy disturbance, submits a consistent report — final score 0.31. A 7.7× lift." |
@@ -30,7 +30,7 @@
 | 1:08  | `save_finding` × 3 around steps 12–22.                            | "Three findings saved while the log is still available."                                                       |
 | 1:18  | Step 30 → `[CONTEXT LIMIT REACHED]` banner.                       | "And there it is — the full log is gone. Step 30."                                                             |
 | 1:22  | Agent calls `recall_memory`.                                      | "It planned for this. The keys it saved 60 seconds ago are still here."                                        |
-| 1:30  | Switch back to `docs/rollout_compare.png`.                        | Sentence 4: "Four composable rubrics — Planning, Memory, Recovery, Terminal — at 0.20, 0.20, 0.20, 0.40. Real Rootly logs feed the artifacts. Outcome × efficiency stops reward farming." |
+| 1:30  | Switch back to `docs/figures/rollout_compare.png`.                        | Sentence 4: "Four composable rubrics — Planning, Memory, Recovery, Terminal — at 0.20, 0.20, 0.20, 0.40. Real Rootly logs feed the artifacts. Outcome × efficiency stops reward farming." |
 | 1:55  | Switch to WandB public run.                                       | "And here's the training signal — public run on WandB. Trackio link is on the README."                        |
 | 2:10  | Switch to `docs/baseline_scores.md`.                              | Sentence 5: "Anthropic's next Opus could literally train on this. Everything is in the README."                |
 | 2:25  | Stop on the README link slide.                                    | (silent — invite questions)                                                                                    |
@@ -91,7 +91,7 @@ The trajectory order shipped in `docs/rollout_trained.txt`:
 | ----- | --------------------------------------------------------------------------- |
 | 1     | Praxis MissionOps logo + tagline + HF Space URL.                            |
 | 2     | Mission shape diagram (8 phases) from `Architecture/ScenarioCatalog.md` §3.1. |
-| 3     | `docs/rollout_compare.png` + `docs/demo.gif`.                               |
+| 3     | `docs/figures/rollout_compare.png` + `docs/demo.gif`.                               |
 | 4     | The 4-rubric weight pie chart + outcome × efficiency formula.               |
 | 5     | TRL `environment_factory` snippet + WandB + Trackio links.                  |
 

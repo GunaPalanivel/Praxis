@@ -46,9 +46,9 @@ This is the **verbatim** content for the body of Issue #39. Paste this into GitH
 
 > _"Make plots readable. Make the story land in 90 seconds."_ (S2)
 
-- [ ] **#8.** **Before/after rollout deliverables** — `docs/rollout_baseline.txt`, `docs/rollout_trained.txt`, `docs/rollout_compare.png`, `docs/demo.gif` committed (Issue #33). Same `mission_id` and seed; baseline ≈ 0.04, trained ≈ 0.31 (≥ 5× lift).
+- [ ] **#8.** **Before/after rollout deliverables** — `docs/rollout_baseline.txt`, `docs/rollout_trained.txt`, `docs/figures/rollout_compare.png`, `docs/demo.gif` committed (Issue #33). Same `mission_id` and seed; baseline ≈ 0.04, trained ≈ 0.31 (≥ 5× lift).
 - [ ] **#9.** **5-sentence pitch lands in ≤ 50 seconds** — `idea/Plan/Demo/Narrative.md` §1; rehearsed; speaker-notes-ready.
-- [ ] **#10.** **README opens with the visual** — first content block of `README.md` is `docs/rollout_compare.png` followed by `docs/demo.gif`, then the 5-sentence pitch. No paragraphs above the fold. Issue #38.
+- [ ] **#10.** **README opens with the visual** — first content block of `README.md` is `docs/figures/rollout_compare.png` followed by `docs/demo.gif`, then the 5-sentence pitch. No paragraphs above the fold. Issue #38.
 - [ ] **#11.** **Mini-blog OR YouTube ≤ 2 min** — public link in README + `Submission/ReleasePackage.md` §2. Title: _"Training LLMs to Remember: Praxis MissionOps and Long-Horizon Operational Reasoning"_ (S39).
 - [ ] **#12.** **Slide deck (5 slides max)** — public Google Slides or PDF in repo. Slides per `idea/Plan/Demo/ScreenplayScript.md` §4.
 - [ ] **#13.** **Q&A drill prepared** — verbatim answers to the 5 likely Meta-engineer questions in `Narrative.md` §6 + `The Situation First.md` "Hour 40–48".
@@ -58,7 +58,7 @@ This is the **verbatim** content for the body of Issue #39. Paste this into GitH
 > _"Show training works. Process rewards beat terminal rewards."_ (S30)
 
 - [ ] **#14.** **4-row score gap table** — `docs/baseline_scores.md` rows: random / no-prompt / SRE-prompt / mtGRPO-trained. ≥ 5× lift baseline → trained. Issues #30 + #32.
-- [ ] **#15.** **Reward + loss curves** — `docs/reward_curve.png` + `docs/loss_curve.png` from ≥ 50 mtGRPO steps. Both linked inline in README. Issue #32.
+- [ ] **#15.** **Reward + loss curves** — `docs/figures/reward_curve.png` + `docs/figures/loss_curve.png` from ≥ 50 mtGRPO steps. Both linked inline in README. Issue #32.
 - [ ] **#16.** **Public Trackio + WandB run URLs** — `docs/training_links.md` lists both; both public from a private window. Issue #32.
 - [ ] **#17.** **Outcome × efficiency score formula** — `compute_task_score = outcome_quality × (1 - steps/max_steps)` with `outcome_quality = 0` unless `_incident_resolved AND _root_cause_identified`. ADR-20, Issue #23. Old avg-reward formula removed.
 
@@ -216,9 +216,9 @@ This tracker mirrors the 4 weighted hackathon axes (Environment Innovation 40%, 
 
 ### Axis B — Storytelling & Presentation (30%)
 
-- [ ] **#8.** Before/after rollout deliverables — `docs/rollout_baseline.txt`, `docs/rollout_trained.txt`, `docs/rollout_compare.png`, `docs/demo.gif` committed; same `mission_id` and seed; lift ≥ 4×. _(closes #33)_
+- [ ] **#8.** Before/after rollout deliverables — `docs/rollout_baseline.txt`, `docs/rollout_trained.txt`, `docs/figures/rollout_compare.png`, `docs/demo.gif` committed; same `mission_id` and seed; lift ≥ 4×. _(closes #33)_
 - [ ] **#9.** 5-sentence pitch lands in ≤ 50 seconds — rehearsed; speaker-notes-ready.
-- [ ] **#10.** README opens with the visual — first content block is `docs/rollout_compare.png` followed by `docs/demo.gif`, then the 5-sentence pitch. _(closes #38)_
+- [ ] **#10.** README opens with the visual — first content block is `docs/figures/rollout_compare.png` followed by `docs/demo.gif`, then the 5-sentence pitch. _(closes #38)_
 - [ ] **#11.** Mini-blog OR YouTube ≤ 2 min — public link in README + `Submission/ReleasePackage.md`.
 - [ ] **#12.** Slide deck (≤ 5 slides) — public Google Slides or PDF in repo.
 - [ ] **#13.** Q&A drill prepared — verbatim answers to the 5 likely judge questions in `idea/Plan/Demo/Narrative.md` §6.
@@ -226,7 +226,7 @@ This tracker mirrors the 4 weighted hackathon axes (Environment Innovation 40%, 
 ### Axis C — Reward Improvement (20%)
 
 - [ ] **#14.** 4-row score gap table — `docs/baseline_scores.md` rows: random / no-prompt / SRE-prompt / mtGRPO-trained; ≥ 4× lift baseline → trained. _(closes #30, #32)_
-- [ ] **#15.** Reward + loss curves — `docs/reward_curve.png` + `docs/loss_curve.png` from ≥ 50 mtGRPO steps; both inline in README. _(closes #32)_
+- [ ] **#15.** Reward + loss curves — `docs/figures/reward_curve.png` + `docs/figures/loss_curve.png` from ≥ 50 mtGRPO steps; both inline in README. _(closes #32)_
 - [ ] **#16.** Public Trackio + WandB run URLs — `docs/training_links.md` lists both; both public from a private window.
 - [ ] **#17.** Outcome × efficiency score formula — `compute_task_score = outcome × efficiency` with `outcome = 0` unless `_incident_resolved AND _root_cause_identified`; old avg-reward formula removed. _(closes #23, references ADR-20)_
 

@@ -19,22 +19,22 @@ pinned: false
 - Live Space: [https://gp5901-praxis.hf.space](https://gp5901-praxis.hf.space)
 - Space project page: [https://huggingface.co/spaces/gp5901/praxis](https://huggingface.co/spaces/gp5901/praxis)
 - Space writeup: [Blog.MD on the Space repo](https://huggingface.co/spaces/gp5901/praxis/blob/main/Blog.MD) (mirrored in GitHub as [Blog.MD](https://github.com/GunaPalanivel/Praxis/blob/main/Blog.MD))
-- Colab: [open `praxis_grpo_colab.ipynb` in Colab](https://colab.research.google.com/github/GunaPalanivel/Praxis/blob/main/praxis_grpo_colab.ipynb)
+- Colab: [open `praxis_grpo_colab.ipynb` in Colab](https://colab.research.google.com/github/GunaPalanivel/Praxis/blob/main/praxis_grpo_colab.ipynb) (canonical: `https://colab.research.google.com/github/GunaPalanivel/Praxis/blob/main/praxis_grpo_colab.ipynb`)
 - Source: [https://github.com/GunaPalanivel/Praxis](https://github.com/GunaPalanivel/Praxis)
 - YouTube: not published for this refresh (add here when you have a public link)
 - WandB / Trackio: not configured in the default local run (see [docs/training_links.md](docs/training_links.md))
 
-**TRL training (`train_praxis_grpo.py`, non-smoke):** the default GRPO reward scores each model completion with **one** environment step (first command after `reset`). Multi-step rollouts appear in `--smoke` metrics, the Colab discrete policy loop, and `scripts/generate_grpo_evidence.py`—not in that default LLM reward unless you extend the callback.
+**TRL training (`train_praxis_grpo.py`, non-smoke):** the GRPO `reward_func` runs a **trajectory** per completion: one `reset` per row, then one `/step` per non-empty line of the model output (in order, capped by `--max-turns`), or a single step when the model emits one line. The scalar label prefers the server’s ADR-20 `final_score` on `/state` when the episode is terminal, otherwise the mean of per-step rewards. Use an external Praxis process in production; local auto-start writes uvicorn stderr to a temp file (see [docs/deployment.md](docs/deployment.md)).
 
 ### Plots (same files the notebook and scripts point at)
 
-![Before and after rollout compare](docs/rollout_compare.png)
+![Before and after rollout compare](docs/figures/rollout_compare.png)
 
 Caption: baseline vs trained mean episode reward on the same chart axes. Full log is in [docs/training_evolution.md](docs/training_evolution.md).
 
-![Training reward and loss from the local metrics CSV](docs/reward_curve.png)
+![Training reward and loss from the local metrics CSV](docs/figures/reward_curve.png)
 
-Caption: reward curve with a fixed random mean reference line, plus a matching loss series in [docs/loss_curve.png](docs/loss_curve.png).
+Caption: reward curve with a fixed random mean reference line, plus a matching loss series in [docs/figures/loss_curve.png](docs/figures/loss_curve.png).
 
 # Praxis: Production Incident Response Training for AI Agents
 
@@ -190,14 +190,14 @@ Run `python inference.py` to generate a fresh score snapshot.
 
 ## Training Evidence Artifacts
 
-GRPO Colab evidence artifacts are committed at repo root:
+Plots and judge-facing figures are under **[`docs/figures/`](docs/figures/)** (see [`docs/figures/README.md`](docs/figures/README.md) for a file index).
 
-- `praxis_grpo_colab.ipynb` (TRL Colab notebook wired to Praxis over HTTP)
-- `reward_curve.png` (baseline vs trained comparison on same axes)
-- `loss_curve.png` (training loss curve)
+- `praxis_grpo_colab.ipynb` (TRL Colab notebook wired to Praxis over HTTP; saves into `docs/figures/`)
+- `docs/figures/reward_curve.png` (baseline vs trained comparison on same axes)
+- `docs/figures/loss_curve.png` (training loss curve)
 - `docs/rollout_baseline.txt` (real baseline rollout trace)
 - `docs/rollout_trained.txt` (real trained-policy rollout trace)
-- `docs/rollout_compare.png` (before/after comparison on one chart)
+- `docs/figures/rollout_compare.png` (before/after comparison on one chart)
 - `docs/training_evolution.md` (training journey and reward progression summary)
 - `docs/training_links.md` (training artifact index and rerun command)
 

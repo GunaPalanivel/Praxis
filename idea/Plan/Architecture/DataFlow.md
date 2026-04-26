@@ -274,45 +274,62 @@ Key invariants:
 
 ---
 
-## 8. Live training loop (Unsloth + mtGRPO, Issue #31)
+## 8. TRL GRPO + HTTP Praxis (current `train_praxis_grpo.py`)
 
-> Replaces the old plain-TRL diagram. ADR-19 / S35.
+> Single-step-only reward was removed in favour of a **per-completion rollout**:
+> one `PraxisEnv` session, `POST /reset` once, then up to `max_turns` `POST /step`
+> calls. The model’s completion string is split on newlines: each line is
+> treated as a command (invalid lines are replaced with a task-local fallback, as
+> in the `--smoke` loop). The reward passed to `GRPOTrainer` is
+> `GET /state` → `final_score` when the episode is terminal, else the **mean** of
+> per-step rewards from the rollout.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Tr as train_praxis_grpo.py
+    participant TRL as TRL GRPOTrainer
+    participant PEc as httpx PraxisEnv client
+    participant API as FastAPI Praxis
+    participant SM as SessionManager
+
+    Tr->>TRL: GRPOTrainer(reward_funcs=[praxis_rollout])
+    TRL->>Tr: batch prompts + completions
+    Tr->>PEc: reset(task) then step for each line (cap max_turns)
+    PEc->>API: POST /reset, POST /step…
+    API->>SM: one session, serialized steps
+    API-->>PEc: reward, done, obs
+    PEc-->>Tr: final_score or mean step reward
+    Tr-->>TRL: list[float] rewards
+```
+
+- **Unsloth / plain HF**: Qwen2.5 is loaded 4-bit or full depending on the branch; optional Unsloth is unchanged.
+- **Local server autostart** (only when `PRAXIS_URL` is down) uses `praxis_env.server_bootstrap` so uvicorn **stderr** lands in a **temp file**; failures surface the log path and a tail of stderr (not `/dev/null`).
+
+### 8.1 Vision (Unsloth + mtGRPO, Issue #31) — not implemented as drawn below
+
+> The following diagram is an aspirational multi-turn GRPO with an
+> `environment_factory` and turn-level credit. The current repo wires TRL via
+> `reward_funcs` and HTTP, not a nested `environment_factory` loop.
 
 ```mermaid
 sequenceDiagram
     autonumber
     participant Tr as train_praxis_grpo.py
     participant U as Unsloth (fast Qwen2.5-7B)
-    participant TRL as TRL GRPOTrainer<br/>+ environment_factory
+    participant TRL as TRL GRPOTrainer
     participant SM as SessionManager
     participant PE as PraxisEnvironment
     participant Trk as Trackio + WandB
 
     Tr->>U: load Qwen2.5-7B-Instruct (4-bit)
-    Tr->>TRL: GRPOTrainer(<br/>  model=U,<br/>  environment_factory=PraxisToolEnv,<br/>  num_generations=8,<br/>  max_turns=150,<br/>  reward_model=mtGRPO_turn_credit<br/>)
+    Tr->>TRL: GRPOTrainer (reward_funcs, optional Unsloth model)
 
-    loop each training step
-        TRL->>SM: 8 parallel allocate_session(task_name, seed=mix)
-        SM->>PE: 8 PraxisEnvironment instances (one per session)
+    Note over Tr,PE: Aspirational: env_factory not in current main path
 
-        loop each turn (≤150)
-            TRL->>PE: step(action) per session
-            PE->>RE: composable rubrics → RewardBreakdown per turn
-            PE-->>TRL: obs, reward_per_rubric, done
-        end
-
-        TRL->>TRL: mtGRPO turn-level credit assignment<br/>policy gradient
-        TRL->>Trk: log {step, mean_reward, planning, memory, recovery, terminal, loss}
-    end
-
-    TRL->>Tr: save adapter
-    Tr->>Trk: final reward_curve.png + loss_curve.png
+    TRL->>Trk: log metrics from training log_history
+    Tr->>Trk: run_manifest + metrics.csv
 ```
 
-What changes vs plain GRPO:
-
-- **Per-turn credit**: each of the 4 rubrics emits a value per turn; mtGRPO uses these for turn-level advantage rather than only end-of-episode credit. Stable on sparse-reward MissionOps.
-- **Throughput**: Unsloth ~2.5× faster than vanilla HF + Flash-Attn for the same context length, fitting Colab T4/A10G budgets.
-- **Public artefacts**: Trackio (private team) + WandB **public run** (judge-readable). Both URLs in README + ReleasePackage.md.
-
-Rollback path: if Unsloth incompatible with the chosen model, fall back to TRL GRPOTrainer with a `turn_reward_aggregator` shim that approximates mtGRPO. Documented in Issue #31 Implementation notes.
+- **Per-turn credit** in the old diagram: future work; today rubric credit is implicit in the server’s per-step and final scores during rollout.
+- **Public artefacts**: Trackio (optional) + WandB (optional) when API keys are set.

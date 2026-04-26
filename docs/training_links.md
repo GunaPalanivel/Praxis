@@ -9,7 +9,7 @@ Run date: 2026-04-26
 - Local metrics CSV: `checkpoints/praxis-grpo/metrics.csv`
 - Rollout baseline log: `docs/rollout_baseline.txt`
 - Rollout trained log: `docs/rollout_trained.txt`
-- Rollout comparison plot: `docs/rollout_compare.png`
+- Rollout comparison plot: `docs/figures/rollout_compare.png`
 - Evolution summary: `docs/training_evolution.md`
 - Long smoke refresh on this date: 170 logged rows in `checkpoints/praxis-grpo/metrics.csv` (stacked episodes via `python train_praxis_grpo.py --smoke --smoke-episodes 10 --steps 30 ...`)
 

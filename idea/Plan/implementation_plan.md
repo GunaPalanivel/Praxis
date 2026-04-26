@@ -110,7 +110,7 @@ Anchors that drive Plan v3.0:
 
 #### Wave 6 — Training run + rollout + Space (T+11h → T+13h)
 
-- `#32` *Training run + curves + 4th baseline row*: capture `docs/loss_curve.png` + `docs/reward_curve.png`; append the trained-Qwen row to `docs/baseline_scores.md` (the 4-row gap table).
+- `#32` *Training run + curves + 4th baseline row*: capture `docs/figures/loss_curve.png` + `docs/figures/reward_curve.png`; append the trained-Qwen row to `docs/baseline_scores.md` (the 4-row gap table).
 - `#33` *Before/after rollout — trophy moment*: `docs/rollout_before.md` + `docs/rollout_after.md` from real `/step` traces; same seed; show ≥ 4× lift on the MissionOps mega-mission.
 - `#37` *HF Space + smoke + Dockerfile prod*: pin `requirements.txt`, ship Dockerfile (uvicorn CMD), deploy Space, `tests/smoke_test.py` green from cold start.
 
