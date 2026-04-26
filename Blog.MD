@@ -1,34 +1,44 @@
-# Praxis: training an agent on real incident workflows
+# We built a training environment for SRE agents. Here is what happened.
 
-## What we built
+Production incidents are not questions. They are threads. You pull one end, something else unravels, you rule out three hypotheses, you circle back, and somewhere in there you either find the problem or you time out and escalate.
 
-Praxis is a FastAPI environment that looks like a live incident bridge. The agent types SRE style commands, reads logs and metrics, and gets graded on how it triages, diagnoses, and remediates. This Space hosts the public HTTP API so training and demos can use the same contract as a research notebook.
+We wanted to know if you could train a language model to follow that thread. Not just a plausible-sounding answer, but a real diagnostic that converges on the right fix. So we built Praxis: a stateful FastAPI environment that puts a model on-call, scores its reasoning, and lets you train on the difference between a model that gets lucky and one that does the work.
 
-## Why this is hard for LLMs
+This is what we built, what broke, and what the training curves showed.
 
-This is not a one shot QA task. The agent must work across many steps, keep track of an investigation thread, and avoid shortcuts that only look good on a single turn. The reward is not a single “final answer” button. The model has to follow a process that still works when the incident gets messy.
+## The core loop
 
-## How the environment works
+Three endpoints. That is the contract.
 
-You call `POST /reset` to start a task. The response includes a session id when the server needs it. You call `POST /step` with one command per step. The response returns an observation, a reward, a done flag, and extra info. `GET /state` is a small summary if you need episode metadata without a full observation.
+`POST /reset` starts an incident. The server loads a scenario and returns a session id when the API needs it. `POST /step` takes one SRE command, runs it against live world state, and returns an observation plus a scored reward in `info`. `GET /state` is episode metadata when you want stats without the full log.
 
-## Reward design in plain terms
+The reward breakdown is what you train on. We split it into four named parts in `info.breakdown`: planning, memory, recovery, and terminal credit. The point is to see *why* a run scored, not just a scalar at the end. A policy that walks for twelve steps and stumbles on the fix is not the same as one that runs four targeted steps and ends in the same place. Scoring is wired in [server/reward.py](https://github.com/GunaPalanivel/Praxis/blob/main/server/reward.py).
 
-The server uses composable rubrics. The names in the `info.breakdown` field line up with planning, memory, recovery, and terminal credit. The idea is to reward the parts of the job that still matter in production, not just a lucky last step.
+## What we built, and in what order
 
-## How we trained
+**First: a way to prove it worked.** Before the training story mattered, we built smoke paths and evidence scripts. When we said the environment runs, we wanted console output and committed artifacts, not a one-off demo. That paid off when Colab config drifted. One broken baseline is fixable. Two at once is a day lost.
 
-We ship a Colab first workflow in the GitHub repo. The notebook is named `praxis_grpo_colab.ipynb`. The notebook is wired to this Space base URL for live rollouts, so the trainer is not learning from a frozen replay that never changes.
+**Rate limits came fast.** Stacking many `/step` calls during smoke started returning HTTP 429. The server reads `PRAXIS_RATE_LIMIT_STEP` and `PRAXIS_RATE_LIMIT_RESET` (see [server/app.py](https://github.com/GunaPalanivel/Praxis/blob/main/server/app.py)). We also added `--smoke-episodes` in [train_praxis_grpo.py](https://github.com/GunaPalanivel/Praxis/blob/main/train_praxis_grpo.py) so you can string episodes and fill `metrics.csv` without inventing data. Rerun notes live in [docs/training_links.md](https://github.com/GunaPalanivel/Praxis/blob/main/docs/training_links.md).
 
-We also run a local smoke loop in `train_praxis_grpo.py` to emit `checkpoints/praxis-grpo/metrics.csv` and to regenerate plots when you need fresh curves without a full GPU run.
+**How we start the process matters.** The Docker [Dockerfile](https://github.com/GunaPalanivel/Praxis/blob/main/Dockerfile) uses `uvicorn server.app:app` in `CMD` as the single ASGI entry. A class of failure shows up if you start with a `python -m` path that re-imports the app and spins uvicorn in-process: you can get two imports and two session managers, and the training client talks to a different world than the routes. We standardize on one process, one import graph.
 
-## Results and plots
+**TRL in Colab is not a local script.** Init order in a cell is unforgiving. We fixed the GRPO config flow in the notebook so a cold Colab run does not die on the first `train()`. Boring work. High save rate.
 
-These files are pinned to the `feat/grpo-colab-evidence` branch in GitHub so a judge can line up the Space story with a PR or branch review.
+**Short CSVs lie with flat curves.** A real improvement can look flat if you only log a dozen points. We extended the logged series so the slope is visible. The direction matters more than a hero number.
 
-- Rollout before and after: `https://raw.githubusercontent.com/GunaPalanivel/Praxis/feat/grpo-colab-evidence/docs/rollout_compare.png`
-- Training reward and loss: `https://raw.githubusercontent.com/GunaPalanivel/Praxis/feat/grpo-colab-evidence/reward_curve.png` and `https://raw.githubusercontent.com/GunaPalanivel/Praxis/feat/grpo-colab-evidence/loss_curve.png`
-- Longer writeup in the repo: `https://github.com/GunaPalanivel/Praxis/blob/feat/grpo-colab-evidence/docs/training_evolution.md`
+## The training results, shown honestly
+
+The rollout comparison is the clearest story we can show. Put baseline and trained on the same axes, then read the command sequence in the text logs if you want the play-by-play.
+
+Early runs look like triage with weak coupling between steps. Later runs look like someone who narrows the space on purpose. Not magic. Consistent with longer metrics once you have enough rows.
+
+The reward curve goes up. The loss series moves down on our smoke-style proxy. Neither line is a Hollywood launch. It is real env stepping, not a replay file.
+
+Evidence files are pinned to the `feat/grpo-colab-evidence` branch in GitHub so a judge can line this Space up with a PR.
+
+- Rollout: `https://raw.githubusercontent.com/GunaPalanivel/Praxis/feat/grpo-colab-evidence/docs/rollout_compare.png`
+- Reward and loss: `https://raw.githubusercontent.com/GunaPalanivel/Praxis/feat/grpo-colab-evidence/reward_curve.png` and `https://raw.githubusercontent.com/GunaPalanivel/Praxis/feat/grpo-colab-evidence/loss_curve.png`
+- Writeup: [docs/training_evolution.md](https://github.com/GunaPalanivel/Praxis/blob/feat/grpo-colab-evidence/docs/training_evolution.md)
 
 ![Rollout compare](https://raw.githubusercontent.com/GunaPalanivel/Praxis/feat/grpo-colab-evidence/docs/rollout_compare.png)
 
@@ -36,39 +46,33 @@ These files are pinned to the `feat/grpo-colab-evidence` branch in GitHub so a j
 
 ![Loss curve](https://raw.githubusercontent.com/GunaPalanivel/Praxis/feat/grpo-colab-evidence/loss_curve.png)
 
-## How we built it, told as a build log
+If the README and the chart disagree, that is a bug. Tell us.
 
-**Contributors (from git history):** the most active commit authors are Guna Palanivel, Gokul G, Sneha, and a small set of co authors on focused fixes.
+## How the team divided the work
 
-1. `d48975d` added real world smoke and evidence scripts. This is the spine that turns “it runs on my machine” into repeatable console checks.
-2. `99f748c` vendored the artifact dataset and third party license notice. This keeps provenance clean when we show real log snippets to judges.
-3. `2ff14ce` added the GRPO training entry point with a smoke path. This is the on ramp for a Colab or GPU run without a mystery wrapper.
-4. `87bc978` committed reward and loss images plus a link bundle. This is the “show your work” moment for the training story.
-5. `2ef6142` added the Colab notebook and the first training curves, so the training story is a file you can point to, not a screenshot in chat.
-6. `6855e98` fixed Colab init details for the TRL GRPO config, which reduces “works in README but fails in a cell” risk.
-7. `9ee39b4` added rollout comparison and evolution logs, so the lift story is paired with a chart and a short narrative.
+Each person owned a lane. Reviews were for catching mistakes, not for optics.
 
-**Merged PRs that moved the project:**
+**Gokul** ([@Gokul287](https://github.com/Gokul287)) carried a large environment integration, then a fast follow pass for review items. Big merge plus quick cleanup beats one perfect shot that never lands.
 
-- **PR 51 and PR 52 (Gokul287):** shipped a large P0 bundle and then fixed review follow ups. This reduced integration risk by landing the environment and follow up fixes in two controlled waves.
-- **PR 53 (snehasneha56526 arch):** shipped an evidence bundle that ties environment work to the submission artifacts. This helped keep “what we show” aligned with what we can reproduce.
+**Sneha** ([@snehasneha56526-arch](https://github.com/snehasneha56526-arch)) tied evidence to claims. A demo without a path to reproduce is a liability when someone actually reads the repo.
 
-**Open tracking work (GitHub, as of 2026 04 26):**
+**Guna** ([@GunaPalanivel](https://github.com/GunaPalanivel)) ran coordination: tracker, deployment smoke, README. The job is to make what judges see match what you can run again.
 
-- **Issue 50 (GunaPalanivel):** submission tracker, still the umbrella until every judge facing box is done.
-- **Issue 48 (GunaPalanivel):** deployment and smoke pack, still open while we keep Space and CI green together.
-- **Issue 44 (Gokul287):** demo asset and trophy rollout story, still open if we add a short GIF or a tighter before and after.
-- **Issue 49 (GunaPalanivel):** README and storytelling polish, still open while we keep tightening the first screen for judges.
+[Issue 44](https://github.com/GunaPalanivel/Praxis/issues/44) is still open: a before and after motion asset for the rollout story. It is open because we want it done right, not just ticked.
 
-**Blockers we hit, and what we did next:**
+## What is still broken or unknown
 
-- **Local rate limits on `/step`:** when we stacked many quick steps, the dev server returned HTTP 429. We raised the local limit with `PRAXIS_RATE_LIMIT_STEP` and `PRAXIS_RATE_LIMIT_RESET` for the smoke run, and we also added a `--smoke-episodes` option so we can log long series without faking data.
-- **TRL stack not installed on a bare machine:** the repo documents the path, and the Colab file is the primary GPU story. The smoke path still gives honest curves by stepping the live env.
-- **Lift claims vs a short log:** a short CSV makes charts look flat even when the system works. The longer series is there to show trend lines with enough points to read.
+**Success and wandering.** [inference.py](https://github.com/GunaPalanivel/Praxis/blob/main/inference.py) uses `SUCCESS_SCORE_THRESHOLD` (default `0.50`) to mark a run as successful at the end. The rubric still has small per-step investigation credits. A bad policy can look busy even when it never earns a high task score. Raising the bar or tightening outcome gates is still fair game.
 
-## Links
+**Repo-shaped memorization.** Fixed scenarios in the open repo can be memorized. `POST /reset` accepts `seed` for **procedural-incident** and **cascading-platform-failure**; other tasks ignore seed today (see [server/praxis_environment.py](https://github.com/GunaPalanivel/Praxis/blob/main/server/praxis_environment.py)). Broader use of `seed` across all tasks, or more procedural surface, is the next infrastructure step if you want anti-memorization to be a first-class story.
 
-- Live Space app: `https://gp5901-praxis.hf.space`
-- Space project page: `https://huggingface.co/spaces/gp5901/praxis`
-- GitHub source: `https://github.com/GunaPalanivel/Praxis`
-- Open in Colab: `https://colab.research.google.com/github/GunaPalanivel/Praxis/blob/main/praxis_grpo_colab.ipynb`
+**Memory cutoff vs episode length.** The memory module uses a context cutoff (default 30) with scenario overrides. Short tasks (for example 15 max steps) can finish before the cutoff changes what the agent sees. The mission task runs up to 150 steps with cutoff 30, so the memory path is not theoretical there.
+
+## Where everything lives
+
+- Live environment: [gp5901-praxis.hf.space](https://gp5901-praxis.hf.space)
+- HF Space: [huggingface.co/spaces/gp5901/praxis](https://huggingface.co/spaces/gp5901/praxis)
+- Source: [github.com/GunaPalanivel/Praxis](https://github.com/GunaPalanivel/Praxis)
+- Colab: [open the notebook in Colab](https://colab.research.google.com/github/GunaPalanivel/Praxis/blob/main/praxis_grpo_colab.ipynb)
+- Rollout image in repo: `docs/rollout_compare.png`
+- Training evolution: `docs/training_evolution.md`
