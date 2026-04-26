@@ -522,7 +522,8 @@ def _build_training_rows(tasks: list[str], repeats: int) -> list[dict[str, str]]
                     "prompt": (
                         "You are an SRE incident commander. "
                         f"Investigate and resolve task: {task_name}. "
-                        "Return one valid Praxis command."
+                        "Reply with one valid Praxis command per line; use multiple "
+                        "lines for a full remediation sequence when needed."
                     ),
                     "task_name": task_name,
                 }
