@@ -24,17 +24,17 @@ We also run a local smoke loop in `train_praxis_grpo.py` to emit `checkpoints/pr
 
 ## Results and plots
 
-These files live in the GitHub repository on `main` so the Space and the code review always match.
+These files are pinned to the `feat/grpo-colab-evidence` branch in GitHub so a judge can line up the Space story with a PR or branch review.
 
-- Rollout before and after: `https://raw.githubusercontent.com/GunaPalanivel/Praxis/main/docs/rollout_compare.png`
-- Training reward and loss: `https://raw.githubusercontent.com/GunaPalanivel/Praxis/main/reward_curve.png` and `https://raw.githubusercontent.com/GunaPalanivel/Praxis/main/loss_curve.png`
-- Longer writeup in the repo: `https://github.com/GunaPalanivel/Praxis/blob/main/docs/training_evolution.md`
+- Rollout before and after: `https://raw.githubusercontent.com/GunaPalanivel/Praxis/feat/grpo-colab-evidence/docs/rollout_compare.png`
+- Training reward and loss: `https://raw.githubusercontent.com/GunaPalanivel/Praxis/feat/grpo-colab-evidence/reward_curve.png` and `https://raw.githubusercontent.com/GunaPalanivel/Praxis/feat/grpo-colab-evidence/loss_curve.png`
+- Longer writeup in the repo: `https://github.com/GunaPalanivel/Praxis/blob/feat/grpo-colab-evidence/docs/training_evolution.md`
 
-![Rollout compare](https://raw.githubusercontent.com/GunaPalanivel/Praxis/main/docs/rollout_compare.png)
+![Rollout compare](https://raw.githubusercontent.com/GunaPalanivel/Praxis/feat/grpo-colab-evidence/docs/rollout_compare.png)
 
-![Reward curve](https://raw.githubusercontent.com/GunaPalanivel/Praxis/main/reward_curve.png)
+![Reward curve](https://raw.githubusercontent.com/GunaPalanivel/Praxis/feat/grpo-colab-evidence/reward_curve.png)
 
-![Loss curve](https://raw.githubusercontent.com/GunaPalanivel/Praxis/main/loss_curve.png)
+![Loss curve](https://raw.githubusercontent.com/GunaPalanivel/Praxis/feat/grpo-colab-evidence/loss_curve.png)
 
 ## How we built it, told as a build log
 
