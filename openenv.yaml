@@ -18,8 +18,19 @@ tasks:
     difficulty: hard
     max_steps: 25
   - name: cascading-platform-failure
-    difficulty: hard
+    difficulty: mission
     max_steps: 150
+    phases:
+      [
+        Intake,
+        Exploration,
+        Planning,
+        Execution,
+        Disturbance,
+        Recovery,
+        Completion,
+        Reflection,
+      ]
   - name: procedural-incident
     difficulty: medium
     max_steps: 25
@@ -52,3 +63,12 @@ data_sources:
     notice: data/artifacts/NOTICE.md
     provenance_prefix: "praxis:fixtures"
     license_file: LICENSE-3rd-party
+rubrics:
+  - name: PlanningRubric
+    weight: 0.20
+  - name: MemoryRubric
+    weight: 0.20
+  - name: RecoveryRubric
+    weight: 0.20
+  - name: TerminalRubric
+    weight: 0.40

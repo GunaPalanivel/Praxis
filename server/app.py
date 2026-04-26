@@ -86,7 +86,7 @@ _TASK_DIFFICULTY: dict[str, str] = {
     "ambiguous-incident": "medium",
     "cascading-failure": "hard",
     "memory-leak": "hard",
-    "cascading-platform-failure": "hard",
+    "cascading-platform-failure": "mission",
     "procedural-incident": "medium",
 }
 
