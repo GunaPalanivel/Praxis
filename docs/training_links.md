@@ -4,7 +4,7 @@ Run date: 2026-04-26
 
 - Plotting / evidence scripts (`scripts/build_production_evidence.py`, `scripts/plot_curves.py`, `scripts/generate_grpo_evidence.py`) need the **`evidence`** optional extra. With uv: `uv sync --all-extras` (includes `evidence`) or `uv sync --extra evidence`.
 - Logging: this branch is **Trackio-only** for production. Set `TRACKIO_SPACE_ID=<user>/<space>` in the environment (e.g. `gp5901/trackio`); the trainer reports to that Space and writes `trackio_url` to `checkpoints/praxis-grpo/run_manifest.json`. `_init_wandb` is a no-op stub (kept for back-compat with older docs); `--no-wandb` is still accepted as the offline/CI switch and now also disables Trackio.
-- YouTube: record a 2–3 min Space screencast, publish unlisted or public, replace the `REPLACE_WITH_PUBLIC_ID` placeholder in `README.md`.
+- YouTube: record a 2–3 min Space screencast, publish unlisted or public, then paste the URL into the **Video** row of the [README § Links & materials](https://github.com/GunaPalanivel/Praxis/blob/main/README.md#links--materials-judges-start-here) table.
 - Local run manifest: `checkpoints/praxis-grpo/run_manifest.json`
 - Local metrics CSV: `checkpoints/praxis-grpo/metrics.csv`
 - Rollout baseline log: `docs/rollout_baseline.txt`
@@ -61,10 +61,10 @@ Stable links (independent of a single job finishing):
 
 Recent jobs:
 
-| Job | Result |
-| --- | --- |
+| Job                                                                                       | Result                                                                                                                                                                 |
+| ----------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [`69edcfdad2c8bd8662bcfa07`](https://huggingface.co/jobs/gp5901/69edcfdad2c8bd8662bcfa07) | **Failed** — trainer import (`No module named 'mergekit'`). Fixed by declaring `mergekit` / `llm-blender` and compatible `transformers` in the trainer PEP 723 header. |
-| [`69edd94dd2c8bd8662bcfb08`](https://huggingface.co/jobs/gp5901/69edd94dd2c8bd8662bcfb08) | **Good path** — reaches GRPO training loop (Trackio + Hub as above). |
+| [`69edd94dd2c8bd8662bcfb08`](https://huggingface.co/jobs/gp5901/69edd94dd2c8bd8662bcfb08) | **Good path** — reaches GRPO training loop (Trackio + Hub as above).                                                                                                   |
 
 When you need long smoke curves without a TRL install, re-run a stacked smoke (raise local rate limits if you hit 429 on `/step`):
 
