@@ -10,9 +10,11 @@ tags:
 pinned: false
 ---
 
-# Praxis — Mission-style incident response as an OpenEnv
+# Praxis - Mission-style incident response as an OpenEnv
 
 **One line:** Praxis is an OpenEnv-style **incident bridge**: the agent must investigate, plan, and remediate like an on-call engineer. Rewards follow the **full trajectory** (multi-step `/step`), not a single lucky answer.
+
+> Built For: [Meta PyTorch OpenEnv Hackathon x SST](scaler.com/school-of-technology/meta-pytorch-hackathon)
 
 ## Quick navigation
 
