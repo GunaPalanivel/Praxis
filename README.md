@@ -10,47 +10,66 @@ tags:
 pinned: false
 ---
 
-# Praxis - Mission-style incident response as an OpenEnv
+# Praxis MissionOps: long-horizon SRE agent training
 
-**One line:** Praxis is an OpenEnv-style **incident bridge**: the agent must investigate, plan, and remediate like an on-call engineer. Rewards follow the **full trajectory** (multi-step `/step`), not a single lucky answer.
+### Plan. Remember. Recover. Score = outcome × efficiency.
 
-> Built For: [Meta PyTorch OpenEnv Hackathon x SST](scaler.com/school-of-technology/meta-pytorch-hackathon)
+![Before and after rollout comparison](docs/figures/rollout_compare.png)
+
+![MissionOps demo](docs/demo.gif)
+
+## The five-sentence pitch
+
+> **Sentence 1 — Mission.** "Real production incidents take 4 to 6 hours and span runbooks, tickets, and on-call notes. Praxis MissionOps is the only environment where agents have to plan, remember, and recover across that full mission — not just answer one alert."
+
+> **Sentence 2 — Before rollout.** "Here is a baseline Qwen-7B agent. It wanders, queries logs after the context window collapses, never plans, and gets a final score of 0.04."
+
+> **Sentence 3 — After rollout.** "Here is the same model after one mtGRPO training run on Praxis. It calls `create_plan` early, saves three findings before the cutoff, recovers from a deploy disturbance, submits a consistent post-incident report, and scores 0.31 — a 7.7× lift."
+
+> **Sentence 4 — How.** "Four composable rubrics — Planning, Memory, Recovery, Terminal — score the trajectory. Real Rootly production logs feed the artifacts. Outcome × efficiency stops the agent reward-farming."
+
+> **Sentence 5 — Ask.** "Anthropic's next Opus could literally train on this. Everything is in the README — Trackio, WandB, the rollouts, and the HF Space."
 
 ## Quick navigation
 
-| Section                                                                 | What you get                                                |
-| ----------------------------------------------------------------------- | ----------------------------------------------------------- |
-| [Links & materials](#links--materials-judges-start-here)                | HF Space, Hub, Trackio, Colab, blog, hackathon              |
-| [Production merge checklist (13)](#production-merge-checklist-13-items) | Gate items vs **real** URLs, jobs, and test evidence        |
-| [The problem](#the-problem)                                             | Why incident response is a hard, worthwhile training target |
-| [How the environment works](#how-the-environment-works)                 | API contract, observations, rewards, determinism            |
-| [Results](#results)                                                     | Task matrix, baselines, GRPO smoke vs production HF Jobs    |
-| [Visual evidence](#visual-evidence)                                     | Rollout compare, GIF, reward/loss curves                    |
-| [Training & reproduction](#training--reproduction)                      | Scripts, HF Jobs launcher, deeper docs                      |
-| [Quick start](#quick-start-5-commands)                                  | Clone, install, run server locally                          |
-| [API reference](#api-reference)                                         | `/health`, `/reset`, `/step`, `/state`                      |
-| [Development](#development)                                             | Tests, Docker, layout                                       |
+| Section | What you get |
+| --- | --- |
+| [Links & materials](#links--materials-judges-start-here) | HF Space, training, blog/video, and slides |
+| [The problem](#the-problem) | Why long-horizon incident response matters |
+| [How the environment works](#how-the-environment-works) | API, observations, actions, and rewards |
+| [Results](#results) | Tasks, baselines, and training evidence |
+| [Composable rubrics](#composable-rubrics) | Planning, memory, recovery, and terminal scoring |
+| [Visual evidence](#visual-evidence) | Rollouts, reward curve, and loss curve |
+| [Training & reproduction](#training--reproduction) | GRPO and environment training |
+| [Quick Start](#quick-start-5-commands) | Run Praxis locally |
+| [API reference](#api-reference) | `/health`, `/reset`, `/step`, and `/state` |
 
----
+
+
+
 
 ## Links & materials (judges start here)
 
-**Required:** the live **Hugging Face Space** (hosted environment) is the primary way to hit the same HTTP API the trainer and Colab use.
+The links below provide the hosted environment, training evidence, rollout visuals, and submission materials.
 
-| Material                                   | URL                                                                                                                                                                   | Notes                                                                   |
-| ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| **Live environment (HF Space)**            | **[https://gp5901-praxis.hf.space](https://gp5901-praxis.hf.space)**                                                                                                  | OpenEnv-compatible HTTP API (`/health`, `/reset`, `/step`, `/state`).   |
-| Space repository                           | [huggingface.co/spaces/gp5901/praxis](https://huggingface.co/spaces/gp5901/praxis)                                                                                    | Dockerfile, secrets, Space settings.                                    |
-| Space / repo writeup (blog)                | [Blog.MD on the Space](https://huggingface.co/spaces/gp5901/praxis/blob/main/Blog.MD) · [mirror on GitHub](https://github.com/GunaPalanivel/Praxis/blob/main/Blog.MD) | Narrative for judges and readers.                                       |
-| Source code                                | [github.com/GunaPalanivel/Praxis](https://github.com/GunaPalanivel/Praxis)                                                                                            | Issues, PRs, CI.                                                        |
-| GRPO Colab                                 | [Open in Colab](https://colab.research.google.com/github/GunaPalanivel/Praxis/blob/main/praxis_grpo_colab.ipynb)                                                      | **GPU:** `uv run train_praxis_grpo.py` (TRL+Unsloth, short run + plots). **CPU:** smoke only. |
-| Colab exports (curves, logs)               | [`colabresults/`](colabresults/README.md)                                                                                                                             | Includes [`eval_checkpoints.json`](colabresults/eval_checkpoints.json). |
-| **Trackio (training metrics)**             | **[https://gp5901-trackio.hf.space/](https://gp5901-trackio.hf.space/)**                                                                                              | Live GRPO / trainer metrics (HF-native).                                |
-| Trackio Space (repo)                       | [huggingface.co/spaces/gp5901/trackio](https://huggingface.co/spaces/gp5901/trackio)                                                                                  | Dataset sync backing the dashboard.                                     |
-| **Hub model (GRPO adapter + checkpoints)** | **[huggingface.co/gp5901/praxis-grpo-7b](https://huggingface.co/gp5901/praxis-grpo-7b)**                                                                              | Artifacts from `HF_HUB_MODEL_ID` training runs.                         |
-| Training runbook                           | [`docs/training_links.md`](docs/training_links.md)                                                                                                                    | HF Jobs commands, job IDs, env vars.                                    |
-| Deployment                                 | [`docs/deployment.md`](docs/deployment.md)                                                                                                                            | Docker / Space checklist.                                               |
-| Hackathon context                          | [Meta PyTorch OpenEnv Hackathon × SST](https://www.scaler.com/school-of-technology/meta-pytorch-hackathon)                                                            | Program link.                                                           |
+| Material | URL | Notes |
+| --- | --- | --- |
+| **Live environment** | [Praxis HF Space](https://gp5901-praxis.hf.space) | OpenEnv-compatible API: `/health`, `/reset`, `/step`, `/state`. |
+| Space repository | [gp5901/praxis on Hugging Face](https://huggingface.co/spaces/gp5901/praxis) | Docker Space configuration and deployment files. |
+| Source code | [GunaPalanivel/Praxis](https://github.com/GunaPalanivel/Praxis) | Canonical GitHub repository. |
+| GRPO Colab | [Open in Colab](https://colab.research.google.com/github/GunaPalanivel/Praxis/blob/main/praxis_grpo_colab.ipynb) | GPU training path with TRL and Unsloth. |
+| Training runbook | [`docs/training_links.md`](docs/training_links.md) | HF Jobs commands, job IDs, and environment variables. |
+| Reward curve | [`docs/figures/reward_curve.png`](docs/figures/reward_curve.png) | Training reward evidence. |
+| Loss curve | [`docs/figures/loss_curve.png`](docs/figures/loss_curve.png) | Training loss evidence. |
+| Rollout comparison | [`docs/figures/rollout_compare.png`](docs/figures/rollout_compare.png) | Before-and-after rollout chart. |
+| Demo recording | [`docs/demo.gif`](docs/demo.gif) | Short visual demonstration of the rollout behavior. |
+| Score comparison | [`docs/baseline_scores.md`](docs/baseline_scores.md) | Baseline and trained score results. |
+| Trackio | [Praxis Trackio dashboard](https://gp5901-trackio.hf.space/) | Public training metrics. |
+| Hub model | [gp5901/praxis-grpo-7b](https://huggingface.co/gp5901/praxis-grpo-7b) | GRPO adapter and checkpoint artifacts. |
+| Mini-blog or video | **Replace with the final public blog or video URL** | Required public storytelling deliverable. |
+| Slide deck | **Replace with the final public slide-deck URL or PDF link** | Five slides maximum. |
+| Benchmark API | `GET /benchmark` | Model-versus-mean benchmark score endpoint. |
+| Hackathon context | [Meta PyTorch OpenEnv Hackathon × SST](https://www.scaler.com/school-of-technology/meta-pytorch-hackathon) | Program context. |
 
 ### Required deployments (after each push to `main`)
 
@@ -162,6 +181,23 @@ flowchart LR
 
 ---
 
+## Composable rubrics
+
+Praxis scores the full trajectory using four complementary rubrics.
+
+| Rubric | Weight | What it measures |
+| --- | ---: | --- |
+| Planning | 0.20 | Whether the agent creates and follows an investigation plan |
+| Memory | 0.20 | Whether the agent saves and recalls important findings |
+| Recovery | 0.20 | Whether the agent adapts after a disturbance |
+| Terminal | 0.40 | Whether the incident is correctly resolved |
+
+The final task score follows:
+
+```text
+score = outcome_quality × efficiency
+```
+
 ## Results
 
 ### Task catalog
@@ -222,9 +258,11 @@ flowchart LR
 
 ![Before and after rollout compare](docs/figures/rollout_compare.png)
 
-![docs/demo.gif](docs/demo.gif)
+![MissionOps demo](docs/demo.gif)
 
 ![Training reward curve](docs/figures/reward_curve.png)
+
+![Training loss curve](docs/figures/loss_curve.png)
 
 ---
 
@@ -249,6 +287,8 @@ pip install -e ".[dev]"
 python -m uvicorn server.app:app --host 0.0.0.0 --port 7860
 curl http://localhost:7860/health
 ```
+
+The `curl` command should be run in a second terminal after the server starts.
 
 Optional smoke checks:
 
